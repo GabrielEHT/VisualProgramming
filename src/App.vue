@@ -1,81 +1,64 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import GeneratorVue from './components/Generator.vue';
+import DrawflowVue from './components/Drawflow.vue';
+import { ref } from 'vue'
+
+const showGenerator = ref(false)
+
+function clicking() {
+  console.log('Clicked!')
+  showGenerator.value = !showGenerator.value
+}
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-    </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  <div class="left-panel">
+    <h3 class="test">Blocks</h3>
+    <button @click="clicking">generate code</button>
+  </div>
+  <div class="central-panel">
+    <DrawflowVue/>
+  </div>
+  <div v-if="showGenerator" class="right-panel">
+    <GeneratorVue>Here goes the code</GeneratorVue>
+  </div>
 </template>
 
-<style>
-@import './assets/base.css';
-
-#app {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-
-  font-weight: normal;
+<style scoped>
+.left-panel {
+  position: absolute;
+  height: 100%;
+  width: 15%;
+  top: 0px;
+  left: 0px;
+  background: rgb(218, 230, 233);
+  border-right: 2px;
+  border-right-style: solid;
+  border-right-color: black;
 }
 
-header {
-  line-height: 1.5;
+.left-panel * {
+  font-size: medium;
+  font-family: Arial, Helvetica, sans-serif;
+  left: 15%;
 }
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
+.central-panel {
+  position: relative;
+  left: 15%;
+  background-color: blue;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-}
-
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-}
-
-@media (min-width: 1024px) {
-  body {
-    display: flex;
-    place-items: center;
-  }
-
-  #app {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    padding: 0 2rem;
-  }
-
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
+.right-panel {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  height: 100%;
+  background-color: lightcyan;
+  border-left: 1px;
+  border-left-style: solid;
+  border-left-color: black;
+  width: 15%;
+  height: 100%;
 }
 </style>
