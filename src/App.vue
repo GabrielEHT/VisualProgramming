@@ -1,34 +1,73 @@
 <script setup>
+import Drawflow from 'drawflow'
+import "drawflow/dist/drawflow.min.css"
+import { shallowRef, ref, h, render, onMounted } from 'vue'
+import addComp from './components/add.vue';
+import assingComp from './components/assign.vue'
 import GeneratorVue from './components/Generator.vue';
-import DrawflowVue from './components/Drawflow.vue';
-import { ref } from 'vue'
 
 const showGenerator = ref(false)
+const Vue = { version: 3, h, render };
+const editor = shallowRef({})
+
+function newNode(data) {
+  editor.value.addNode(data.name, data.in, 1, 0, 0, data.class, {}, data.comp, 'vue')
+}
 
 function clicking() {
   console.log('Clicked!')
   showGenerator.value = !showGenerator.value
 }
+
+function hola() {
+  console.log('Hey')
+}
+
+onMounted(() => {
+  let id = document.getElementById("drawflow");
+  console.log(id)
+  editor.value = new Drawflow(id, Vue);
+  editor.value.registerNode('assign', assingComp, {}, {})
+  editor.value.registerNode('add', addComp, {}, {})
+  editor.value.start();
+})
 </script>
 
 <template>
-  <div class="left-panel">
-    <h3 class="test">Blocks</h3>
-    <button @click="clicking">generate code</button>
-  </div>
-  <div class="central-panel">
-    <DrawflowVue/>
-  </div>
-  <div v-if="showGenerator" class="right-panel">
-    <GeneratorVue>Here goes the code</GeneratorVue>
+  <div class="box">
+    <div class="left-panel">
+      <h3 class="test">Blocks</h3>
+      <button>New number</button>
+      <button @click="newNode({ name:'Assignation', in:1, class:'Flow', comp:'assign'})">New assignation</button>
+      <button @click="newNode({ name:'Addition', in:2, class:'Operation', comp:'add'})">New addition</button>
+      <button>substraction</button>
+      <button>multiplication</button>
+      <button>division</button>
+      <button>new function</button>
+      <button>add if-else</button>
+      <button>add for loop</button>
+      <button @click="clicking">generate code</button>
+    </div>
+    <div id="drawflow"></div>
+    <div v-if="showGenerator" class="right-panel">
+      <GeneratorVue>Here goes the code</GeneratorVue>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.left-panel {
+.box {
   position: absolute;
+  display: flex;
   height: 100%;
-  width: 15%;
+  width: 100%;
+  left: 0px;
+  top: 0px;
+}
+
+.left-panel {
+  height: 100%;
+  width: 18%;
   top: 0px;
   left: 0px;
   background: rgb(218, 230, 233);
@@ -43,14 +82,14 @@ function clicking() {
   left: 15%;
 }
 
-.central-panel {
-  position: relative;
-  left: 15%;
-  background-color: blue;
+#drawflow {
+  width: 100%;
+  height: 100%;
+  border: 1px solid red;
+  text-align: initial;
 }
 
 .right-panel {
-  position: absolute;
   right: 0px;
   top: 0px;
   height: 100%;
