@@ -1,14 +1,22 @@
 <script setup>
 import Drawflow from 'drawflow'
+// Necesario?
 import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
-import addComp from './components/add.vue';
-import assingComp from './components/assign.vue'
+import nodes from './components/nodes.vue'
 import GeneratorVue from './components/Generator.vue';
 
 const showGenerator = ref(false)
 const Vue = { version: 3, h, render };
 const editor = shallowRef({})
+// Faltan nodos
+const nodeData = ref([
+  {name:'Assignation', type:'assign', class:'Logic'},
+  {name:'Addition', type:'add', class:'Operation'},
+  {name:'Substraction', type:'sub', class:'Operation'},
+  {name:'Multiplication', type:'mul', class:'Operation'},
+  {name:'Division', type:'div', class:'Operation'}
+])
 
 function newNode(data) {
   editor.value.addNode(data.name, data.in, 1, 0, 0, data.class, {}, data.comp, 'vue')
@@ -27,8 +35,14 @@ onMounted(() => {
   let id = document.getElementById("drawflow");
   console.log(id)
   editor.value = new Drawflow(id, Vue);
-  editor.value.registerNode('assign', assingComp, {}, {})
-  editor.value.registerNode('add', addComp, {}, {})
+  for (let i = 0; i < nodeData.value.length; i++) {
+    editor.value.registerNode(
+      nodeData.value[i].type,
+      nodes,
+      {name:nodeData.value[i].name, type:nodeData.value[i].type},
+      {}
+    )
+  }
   editor.value.start();
 })
 </script>
@@ -37,15 +51,16 @@ onMounted(() => {
   <div class="box">
     <div class="left-panel">
       <h3 class="test">Blocks</h3>
+      <!--Añade bloque FOR-->
       <button>New number</button>
-      <button @click="newNode({ name:'Assignation', in:1, class:'Flow', comp:'assign'})">New assignation</button>
-      <button @click="newNode({ name:'Addition', in:2, class:'Operation', comp:'add'})">New addition</button>
-      <button>substraction</button>
-      <button>multiplication</button>
-      <button>division</button>
-      <button>new function</button>
-      <button>add if-else</button>
-      <button>add for loop</button>
+      <button @click="newNode({ name:'Assignation', in:1, class:'Flow', comp:'assign' })">New assignation</button>
+      <button @click="newNode({ name:'Addition', in:2, class:'Operation', comp:'add' })">New addition</button>
+      <button @click="newNode({ name:'Substraction', in:2, class:'Operation', comp:'sub' })">New substraction</button>
+      <button @click="newNode({ name:'Multiplication', in:2, class:'Operation', comp:'mul' })">New multiplication</button>
+      <button>New division</button>
+      <button>New function</button>
+      <button>New if-else block</button>
+      <button>New for loop</button>
       <button @click="clicking">generate code</button>
     </div>
     <div id="drawflow"></div>
