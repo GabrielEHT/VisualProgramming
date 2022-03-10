@@ -5,11 +5,8 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 // Separar en distintos componentes?
 import nodes from './components/nodes.vue'
-// Js o Vue?
-import GeneratorVue from './components/Generator.vue';
 
 const showGenerator = ref(false)
-const Vue = { version: 3, h, render };
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
@@ -20,10 +17,7 @@ const nodeData = ref([
   {name:'Multiplication', type:'mul', class:'Operation', in:2},
   {name:'Division', type:'div', class:'Operation', in:2}
 ])
-// No hace falta
-var connections = []
-// Puede ser entero
-var nodeCount = []
+var nodeCount;
 
 // Cambiar nombre?
 function newNode(data) {
@@ -39,21 +33,30 @@ function newNode(data) {
     'vue')
 }
 
-// Cambiarle el nombre
-function clicking() {
-  console.log(nodeCount)
-  let nodesData = []
-  for (let i = 0; i < nodeCount.length; i++) {
-    nodesData.push(editor.value.getNodeFromId(nodeCount[i]))
+function runGenerator() {
+  if (nodeCount) {
+    console.log(nodeCount)
+    let nodesData = []
+    for (let i = 1; i <= nodeCount; i++) {
+      nodesData.push(editor.value.getNodeFromId(i))
+    }
+    console.log(nodesData)
+    nodesData.sort((node) => {
+      
+    })
+    showGenerator.value = !showGenerator.value
+  } else {
+    alert('You haven\'t defined any nodes');
   }
-  console.log(nodesData)
-  showGenerator.value = !showGenerator.value
 }
 
-// Refactorizar
 onMounted(() => {
+  // Initialices Drawflow
   let id = document.getElementById("drawflow");
+  let Vue = { version: 3, h, render };
   editor.value = new Drawflow(id, Vue);
+
+  // Registers all nodes
   for (let i = 0; i < nodeData.value.length; i++) {
     editor.value.registerNode(
       nodeData.value[i].type,
@@ -62,17 +65,17 @@ onMounted(() => {
       {title:() => nodeData.value[i].name}
     )
   }
+
+  // Keeps track of new created nodes
   editor.value.on('nodeCreated', (id) => {
-    console.log('New node:', id)
-    console.log(editor.value.getNodeFromId(id))
-    nodeCount.push(id)
+    console.log('New node:', id);
+    console.log(editor.value.getNodeFromId(id));
+    nodeCount? nodeCount++ : nodeCount = 1;
   })
-  editor.value.on('connectionCreated', (data) => {
-    connections.push(data)
-    console.log(connections)
-  })
+
   editor.value.start();
 })
+
 </script>
 
 <template>
@@ -87,11 +90,14 @@ onMounted(() => {
       <button>New function</button>
       <button>New if-else block</button>
       <button>New for loop</button>
-      <button @click="clicking">generate code</button>
+      <button @click="runGenerator">generate code</button>
     </div>
     <div id="drawflow"></div>
     <div v-if="showGenerator" class="right-panel">
-      <GeneratorVue>Here goes the code</GeneratorVue>
+      <button>X</button>
+      <div>
+        <p>Generating...</p>
+      </div>
     </div>
   </div>
 </template>
@@ -112,8 +118,7 @@ onMounted(() => {
   top: 0px;
   left: 0px;
   background: rgb(218, 230, 233);
-  border-right: 2px solid black;
-  text-align: center;
+  padding-left: 15px;
 }
 
 .left-panel * {
@@ -125,6 +130,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   text-align: initial;
+  border: 2px solid black;
 }
 
 .right-panel {
@@ -132,11 +138,14 @@ onMounted(() => {
   top: 0px;
   height: 100%;
   background-color: lightcyan;
-  border-left: 1px;
-  border-left-style: solid;
-  border-left-color: black;
-  width: 15%;
+  width: 18%;
   height: 100%;
+}
+
+.right-panel button {
+  position: absolute;
+  top: 0px;
+  right: 0px;
 }
 </style>
 
