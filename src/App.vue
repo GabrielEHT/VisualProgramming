@@ -18,13 +18,14 @@ const nodeData = ref([
   {name:'Multiplication', type:'mul', class:'Operation', in:2},
   {name:'Division', type:'div', class:'Operation', in:2}
 ])
+var connections = []
 
 function newNode(data) {
   editor.value.addNode(data.name, data.in, 1, 0, 0, data.class, {}, data.type, 'vue')
 }
 
 function clicking() {
-  console.log('Clicked!')
+  console.log(editor.value.getNodeFromId(connections[0].output_id))
   showGenerator.value = !showGenerator.value
 }
 
@@ -40,6 +41,13 @@ onMounted(() => {
       {title:() => nodeData.value[i].name}
     )
   }
+  editor.value.on('nodeCreated', (id) => {
+    console.log('New node:', id)
+  })
+  editor.value.on('connectionCreated', (data) => {
+    connections.push(data)
+    console.log(connections)
+  })
   editor.value.start();
 })
 </script>
