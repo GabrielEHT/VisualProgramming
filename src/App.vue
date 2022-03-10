@@ -3,7 +3,9 @@ import Drawflow from 'drawflow'
 // Necesario?
 import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
+// Separar en distintos componentes?
 import nodes from './components/nodes.vue'
+// Js o Vue?
 import GeneratorVue from './components/Generator.vue';
 
 const showGenerator = ref(false)
@@ -11,27 +13,46 @@ const Vue = { version: 3, h, render };
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
-  {name:'Number', type:'num', class:'Logic', in:0},
-  {name:'Assignation', type:'assign', class:'Logic', in:1},
+  {name:'Number', type:'num', class:'Logic', vars:{'value':''}},
+  {name:'Assignation', type:'assign', class:'Logic', in:1, vars:{'value':''}},
   {name:'Addition', type:'add', class:'Operation', in:2},
   {name:'Substraction', type:'sub', class:'Operation', in:2},
   {name:'Multiplication', type:'mul', class:'Operation', in:2},
   {name:'Division', type:'div', class:'Operation', in:2}
 ])
+// No hace falta
 var connections = []
+// Puede ser entero
+var nodeCount = []
 
+// Cambiar nombre?
 function newNode(data) {
-  editor.value.addNode(data.name, data.in, 1, 0, 0, data.class, {}, data.type, 'vue')
+  editor.value.addNode(
+    data.name,
+    data.in? data.in : 0,
+    data.out? data.out : 1,
+    0,
+    0,
+    data.class,
+    data.vars? data.vars : {},
+    data.type,
+    'vue')
 }
 
+// Cambiarle el nombre
 function clicking() {
-  console.log(editor.value.getNodeFromId(connections[0].output_id))
+  console.log(nodeCount)
+  let nodesData = []
+  for (let i = 0; i < nodeCount.length; i++) {
+    nodesData.push(editor.value.getNodeFromId(nodeCount[i]))
+  }
+  console.log(nodesData)
   showGenerator.value = !showGenerator.value
 }
 
+// Refactorizar
 onMounted(() => {
   let id = document.getElementById("drawflow");
-  console.log(id)
   editor.value = new Drawflow(id, Vue);
   for (let i = 0; i < nodeData.value.length; i++) {
     editor.value.registerNode(
@@ -43,6 +64,8 @@ onMounted(() => {
   }
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id)
+    console.log(editor.value.getNodeFromId(id))
+    nodeCount.push(id)
   })
   editor.value.on('connectionCreated', (data) => {
     connections.push(data)

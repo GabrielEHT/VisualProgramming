@@ -8,8 +8,8 @@ const props = defineProps({
   <h1>
     <slot name="title"></slot>
   </h1>
-  <input v-if="props.type=='num'" placeholder="Number">
-  <input v-else-if="props.type=='assign'" placeholder="Variable name">
+  <input v-if="props.type=='num'" placeholder="Number" df-value>
+  <input v-else-if="props.type=='assign'" placeholder="Variable name" df-value>
   <p v-else-if="props.type=='add'">A + B</p>
   <p v-else-if="props.type=='sub'">A - B</p>
   <p v-else-if="props.type=='mul'">A * B</p>
