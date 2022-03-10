@@ -1,21 +1,29 @@
 <script setup>
 const props = defineProps({
-    name:String,
     type:String
 })
 </script>
 
 <template>
-  <div v-if="props.type=='assign'">
-    <h1>Assignation</h1>
-    <input placeholder="Variable name">
-  </div>
-  <div v-else>
-    <h3>{{props.name}}</h3>
-    <p v-if="props.type=='add'">A + B</p>
-    <p v-else-if="props.type=='sub'">A - B</p>
-    <p v-else-if="props.type=='mul'">A * B</p>
-    <p v-else-if="props.type=='div'">A / B</p>
-    <p v-else>Err</p>
-  </div>
+  <h1>
+    <slot name="title"></slot>
+  </h1>
+  <input v-if="props.type=='num'" placeholder="Number">
+  <input v-else-if="props.type=='assign'" placeholder="Variable name">
+  <p v-else-if="props.type=='add'">A + B</p>
+  <p v-else-if="props.type=='sub'">A - B</p>
+  <p v-else-if="props.type=='mul'">A * B</p>
+  <p v-else-if="props.type=='div'">A / B</p>
+  <p v-else>Err</p>
 </template>
+
+<style scoped>
+h1 {
+  font-size: medium;
+}
+
+input:hover {
+  background-color: gray;
+  color: aliceblue;
+}
+</style>
