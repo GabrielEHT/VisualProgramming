@@ -11,24 +11,21 @@ const Vue = { version: 3, h, render };
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
-  {name:'Assignation', type:'assign', class:'Logic'},
-  {name:'Addition', type:'add', class:'Operation'},
-  {name:'Substraction', type:'sub', class:'Operation'},
-  {name:'Multiplication', type:'mul', class:'Operation'},
-  {name:'Division', type:'div', class:'Operation'}
+  {name:'Number', type:'num', class:'Logic', in:0},
+  {name:'Assignation', type:'assign', class:'Logic', in:1},
+  {name:'Addition', type:'add', class:'Operation', in:2},
+  {name:'Substraction', type:'sub', class:'Operation', in:2},
+  {name:'Multiplication', type:'mul', class:'Operation', in:2},
+  {name:'Division', type:'div', class:'Operation', in:2}
 ])
 
 function newNode(data) {
-  editor.value.addNode(data.name, data.in, 1, 0, 0, data.class, {}, data.comp, 'vue')
+  editor.value.addNode(data.name, data.in, 1, 0, 0, data.class, {}, data.type, 'vue')
 }
 
 function clicking() {
   console.log('Clicked!')
   showGenerator.value = !showGenerator.value
-}
-
-function hola() {
-  console.log('Hey')
 }
 
 onMounted(() => {
@@ -39,8 +36,8 @@ onMounted(() => {
     editor.value.registerNode(
       nodeData.value[i].type,
       nodes,
-      {name:nodeData.value[i].name, type:nodeData.value[i].type},
-      {}
+      {type:nodeData.value[i].type},
+      {title:() => nodeData.value[i].name}
     )
   }
   editor.value.start();
@@ -51,13 +48,11 @@ onMounted(() => {
   <div class="box">
     <div class="left-panel">
       <h3 class="test">Blocks</h3>
-      <!--Añade bloque FOR-->
-      <button>New number</button>
-      <button @click="newNode({ name:'Assignation', in:1, class:'Flow', comp:'assign' })">New assignation</button>
-      <button @click="newNode({ name:'Addition', in:2, class:'Operation', comp:'add' })">New addition</button>
-      <button @click="newNode({ name:'Substraction', in:2, class:'Operation', comp:'sub' })">New substraction</button>
-      <button @click="newNode({ name:'Multiplication', in:2, class:'Operation', comp:'mul' })">New multiplication</button>
-      <button>New division</button>
+      <ul>
+        <li v-for="data in nodeData">
+          <button @click="newNode(data)">New {{data.name}}</button>
+        </li>
+      </ul>
       <button>New function</button>
       <button>New if-else block</button>
       <button>New for loop</button>
@@ -86,21 +81,18 @@ onMounted(() => {
   top: 0px;
   left: 0px;
   background: rgb(218, 230, 233);
-  border-right: 2px;
-  border-right-style: solid;
-  border-right-color: black;
+  border-right: 2px solid black;
+  text-align: center;
 }
 
 .left-panel * {
   font-size: medium;
   font-family: Arial, Helvetica, sans-serif;
-  left: 15%;
 }
 
 #drawflow {
   width: 100%;
   height: 100%;
-  border: 1px solid red;
   text-align: initial;
 }
 
@@ -114,5 +106,24 @@ onMounted(() => {
   border-left-color: black;
   width: 15%;
   height: 100%;
+}
+</style>
+
+<style>
+.drawflow .parent-node .drawflow-node {
+    background-color: brown;
+    width: auto;
+}
+
+.drawflow .parent-node .drawflow-node:hover {
+    background-color: lightsalmon;
+}
+
+.drawflow .parent-node .drawflow-node .output {
+  background-color: aquamarine;
+}
+
+.drawflow .parent-node .drawflow-node .output:hover {
+  background-color: coral;
 }
 </style>
