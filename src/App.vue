@@ -1,21 +1,16 @@
 <script setup>
 import Drawflow from 'drawflow'
-// Necesario?
 import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
-// Separar en distintos componentes?
-import nodes from './components/nodes.vue'
+import * as components from './components/nodes.vue'
 
 const showGenerator = ref(false)
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
-  {name:'Number', type:'num', class:'Logic', vars:{'value':''}},
-  {name:'Assignation', type:'assign', class:'Logic', in:1, vars:{'value':''}},
-  {name:'Addition', type:'add', class:'Operation', in:2},
-  {name:'Substraction', type:'sub', class:'Operation', in:2},
-  {name:'Multiplication', type:'mul', class:'Operation', in:2},
-  {name:'Division', type:'div', class:'Operation', in:2}
+  {name:'number', type:'num', class:'Value', vars:{'value':''}},
+  {name:'assignation', type:'assign', class:'Value', in:1, vars:{'value':''}},
+  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'aValue':'', 'bValue':''}},
 ])
 var nodeCount;
 
@@ -57,13 +52,29 @@ onMounted(() => {
   editor.value = new Drawflow(id, Vue);
 
   // Registers all nodes
-  for (let i = 0; i < nodeData.value.length; i++) {
-    editor.value.registerNode(
-      nodeData.value[i].type,
-      nodes,
-      {type:nodeData.value[i].type},
-      {title:() => nodeData.value[i].name}
-    )
+  for (let node of nodeData.value) {
+    if (node.class == 'Operation') {
+      editor.value.registerNode(
+        node.type,
+        components.operations,
+        {},
+        {}
+      )
+    } else if (node.class == 'Value') {
+      editor.value.registerNode(
+        node.type,
+        components.datatypes,
+        {},
+        {}
+      )
+    } else {
+      editor.value.registerNode(
+        node.type,
+        components.datatypes,
+        {},
+        {}
+      )
+    }
   }
 
   // Keeps track of new created nodes
@@ -151,12 +162,12 @@ onMounted(() => {
 
 <style>
 .drawflow .parent-node .drawflow-node {
-    background-color: brown;
+    background-color: rgb(212, 216, 218);
     width: auto;
 }
 
-.drawflow .parent-node .drawflow-node:hover {
-    background-color: lightsalmon;
+.drawflow .parent-node .drawflow-node.selected {
+    background-color: rgb(190, 207, 216);
 }
 
 .drawflow .parent-node .drawflow-node .output {
@@ -166,4 +177,13 @@ onMounted(() => {
 .drawflow .parent-node .drawflow-node .output:hover {
   background-color: coral;
 }
+
+.drawflow .drawflow-node.Operation .input {
+  top: 36px;
+}
+
+.drawflow .drawflow-node.Operation .input.input_1 {
+  margin-bottom: 48px;
+}
+
 </style>
