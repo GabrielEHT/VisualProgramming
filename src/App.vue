@@ -14,8 +14,7 @@ const nodeData = ref([
 ])
 var nodeCount;
 
-// Cambiar nombre?
-function newNode(data) {
+function addNode(data) {
   editor.value.addNode(
     data.name,
     data.in? data.in : 0,
@@ -30,16 +29,14 @@ function newNode(data) {
 
 function runGenerator() {
   if (nodeCount) {
-    console.log(nodeCount)
-    let nodesData = []
+    console.log('Number of nodes:', nodeCount);
+    let createdNodes = [];
     for (let i = 1; i <= nodeCount; i++) {
-      nodesData.push(editor.value.getNodeFromId(i))
+      createdNodes.push(editor.value.getNodeFromId(i))
     }
-    console.log(nodesData)
-    nodesData.sort((node) => {
-      
-    })
-    showGenerator.value = !showGenerator.value
+    console.log(createdNodes)
+    // Make a sprting system
+    showGenerator.value = true
   } else {
     alert('You haven\'t defined any nodes');
   }
@@ -64,7 +61,7 @@ onMounted(() => {
       editor.value.registerNode(
         node.type,
         components.datatypes,
-        {},
+        {'type':node.type},
         {}
       )
     } else {
@@ -84,6 +81,12 @@ onMounted(() => {
     nodeCount? nodeCount++ : nodeCount = 1;
   })
 
+  // Keeps track of deleted nodes
+  editor.value.on('nodeRemoved', () => {
+    nodeCount--;
+    console.log('Number of nodes:', nodeCount)
+  })
+
   editor.value.start();
 })
 
@@ -95,7 +98,7 @@ onMounted(() => {
       <h3 class="test">Blocks</h3>
       <ul>
         <li v-for="data in nodeData">
-          <button @click="newNode(data)">New {{data.name}}</button>
+          <button @click="addNode(data)">New {{data.name}}</button>
         </li>
       </ul>
       <button>New function</button>
@@ -105,7 +108,7 @@ onMounted(() => {
     </div>
     <div id="drawflow"></div>
     <div v-if="showGenerator" class="right-panel">
-      <button>X</button>
+      <button @click="showGenerator=false">X</button>
       <div>
         <p>Generating...</p>
       </div>
