@@ -10,9 +10,10 @@ const editor = shallowRef({})
 const nodeData = ref([
   {name:'number', type:'num', class:'Value', vars:{'value':''}},
   {name:'assignation', type:'assign', class:'Value', in:1, vars:{'value':''}},
-  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'aValue':'', 'bValue':''}},
+  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'opr':'','aValue':'', 'bValue':''}},
 ])
-var nodeCount;
+var nodeList = [];
+var execTree = {};
 
 function addNode(data) {
   editor.value.addNode(
@@ -28,6 +29,7 @@ function addNode(data) {
 }
 
 function runGenerator() {
+  let nodeCount = nodeList.length;
   if (nodeCount) {
     console.log('Number of nodes:', nodeCount);
     let createdNodes = [];
@@ -35,6 +37,8 @@ function runGenerator() {
       createdNodes.push(editor.value.getNodeFromId(i))
     }
     console.log(createdNodes)
+    console.log(execTree)
+    console.log(nodeList)
     // Make a sprting system
     showGenerator.value = true
   } else {
@@ -78,13 +82,42 @@ onMounted(() => {
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     console.log(editor.value.getNodeFromId(id));
-    nodeCount? nodeCount++ : nodeCount = 1;
+    nodeList.push({'id':id, 'connected':false})
   })
 
   // Keeps track of deleted nodes
-  editor.value.on('nodeRemoved', () => {
-    nodeCount--;
-    console.log('Number of nodes:', nodeCount)
+  editor.value.on('nodeRemoved', (id) => {
+    nodeList = nodeList.filter(node => node.id!=id)
+    console.log('Removed id:', id, nodeList)
+  })
+
+  editor.value.on('connectionCreated', (data) => {
+    let input = editor.value.getNodeFromId(data.input_id);
+    let output = editor.value.getNodeFromId(data.output_id);
+    if (input.class == 'Operation') {
+      if (input.data.opr != '' && output.data.value != '') {
+        let opr = input.data.opr + data.input_id;
+        let val = output.data.value;
+        execTree[opr]? console.log(execTree) : execTree[opr] = ['X', 'X']
+        data.input_class=='input_1'? execTree[opr][0] = val : execTree[opr][1] = val
+        for (let node of nodeList) {
+          if (node.id == data.output_id) {
+            node.connected = true
+          }
+        }
+      } else {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        alert('Something is not defined')
+      }
+    } else if (input.class == 'Value') {
+      //TODO
+    } else {
+      // Algo?
+    }
+  })
+
+  editor.value.on('connectionRemoved', (data) => {
+    // TODO
   })
 
   editor.value.start();
