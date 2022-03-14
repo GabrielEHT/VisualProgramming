@@ -94,12 +94,14 @@ onMounted(() => {
   editor.value.on('connectionCreated', (data) => {
     let input = editor.value.getNodeFromId(data.input_id);
     let output = editor.value.getNodeFromId(data.output_id);
+
     if (input.class == 'Operation') {
       if (input.data.opr != '' && output.data.value != '') {
-        let opr = input.data.opr + data.input_id;
+        let id = 'Operation' + data.input_id;
+        let opr = input.data.opr;
         let val = output.data.value;
-        execTree[opr]? console.log(execTree) : execTree[opr] = ['X', 'X']
-        data.input_class=='input_1'? execTree[opr][0] = val : execTree[opr][1] = val
+        execTree[id]? console.log(execTree) : execTree[id] = {[opr]:['X', 'X']}
+        data.input_class=='input_1'? execTree[id][opr][0] = val : execTree[id][opr][1] = val;
         for (let node of nodeList) {
           if (node.id == data.output_id) {
             node.connected = true
@@ -110,7 +112,22 @@ onMounted(() => {
         alert('Something is not defined')
       }
     } else if (input.class == 'Value') {
-      //TODO
+      if (input.data.value) {
+        if (output.class == 'Operation') {
+          let oprid = 'Operation' + data.output_id;
+          let id = 'Assignation' + data.input_id;
+          execTree[oprid][id] = input.data.value;
+        } else {
+          // covertir en Array?
+          let id = 'Assignation' + data.input_id;
+          let name = input.data.value;
+          let val = output.data.value;
+          execTree[id] = {[name]:val};
+        }
+      } else{
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        alert('Missing name in assignation node!')
+      }
     } else {
       // Algo?
     }
@@ -215,11 +232,7 @@ onMounted(() => {
 }
 
 .drawflow .drawflow-node.Operation .input {
-  top: 36px;
-}
-
-.drawflow .drawflow-node.Operation .input.input_1 {
-  margin-bottom: 48px;
+  top: 38px;
 }
 
 </style>

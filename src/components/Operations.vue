@@ -21,6 +21,7 @@
 }
 
 .opBox div {
+  display: grid;
   margin-top: 8px;
 }
 
@@ -30,14 +31,12 @@ h1 {
 }
 
 select {
-  margin: left 4px right 4px;
-  width: 100%;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 div input {
   position: relative;
   font-family: Arial, Helvetica, sans-serif;
-  width: 100%;
 }
 
 </style>
