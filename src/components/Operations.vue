@@ -1,14 +1,14 @@
 <template>
   <div class="opBox">
     <h1>Operation</h1>
-    <select df-opr>
+    <select df-val>
       <option value="">Select an operation</option>
       <option value="add">Addition</option>
       <option value="sub">Substraction</option>
     </select>
     <div>
-      <input type="text" placeholder="Number A" id="a" df-aValue>
-      <input type="text" placeholder="Number B" id="b" df-bValue>
+      <input type="text" placeholder="Number A" id="a" df-aNum>
+      <input type="text" placeholder="Number B" id="b" df-bNum>
     </div>
   </div>
 </template>

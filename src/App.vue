@@ -8,12 +8,11 @@ const showGenerator = ref(false)
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
-  {name:'number', type:'num', class:'Value', vars:{'value':''}},
-  {name:'assignation', type:'assign', class:'Value', in:1, vars:{'value':''}},
-  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'opr':'','aValue':'', 'bValue':''}},
+  {name:'number', type:'num', class:'Value', vars:{'val':''}},
+  {name:'assignation', type:'assign', class:'Value', in:1, vars:{'val':''}},
+  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'val':'','aNum':'', 'bNum':''}},
 ])
 var nodeList = [];
-var execTree = {};
 
 function addNode(data) {
   editor.value.addNode(
@@ -28,22 +27,62 @@ function addNode(data) {
     'vue')
 }
 
+// Modificar
 function runGenerator() {
-  let nodeCount = nodeList.length;
-  if (nodeCount) {
-    console.log('Number of nodes:', nodeCount);
-    let createdNodes = [];
-    for (let i = 1; i <= nodeCount; i++) {
-      createdNodes.push(editor.value.getNodeFromId(i))
+  if (nodeList.length) {
+    let endNode;
+    for (let node of nodeList) {
+      if (node.output == false && endNode == undefined) {
+        endNode = node
+      } else if (node.output == false) {
+        endNode = 'err'
+      }
     }
-    console.log(createdNodes)
-    console.log(execTree)
-    console.log(nodeList)
-    // Make a sprting system
-    showGenerator.value = true
+    if (endNode != 'err') {
+      console.log(nodeList)
+      var execTree = createExecTree(endNode)
+      showGenerator.value = true
+      console.log(execTree)
+      //sendDataToApi
+    } else {
+      alert('There are more than one unconnected nodes') //mejorar
+    }
   } else {
     alert('You haven\'t defined any nodes');
   }
+}
+
+function addConnection(output_id, input_id) {
+  for (let node of nodeList) {
+    if (output_id == node.id) {
+      node.output = true
+    } else if (input_id == node.id) {
+      if (node.input_from == 'none') {
+        node.input_from = output_id
+      } else {
+        node.input_from += ':' + output_id
+      }
+    }
+  }
+}
+
+function createExecTree(endNode) {
+  let nodeInfo = editor.value.getNodeFromId(endNode.id);
+  var nodeExec = {[nodeInfo.name + ':' + nodeInfo.data.val]:[]};
+  let inputs = endNode.input_from.split('')
+  if (inputs.length > 1) {
+    inputs.splice(1, 1)
+  }
+  for (let input of inputs) {
+    for (let node of nodeList) {
+      if (node.id == input && node.input_from != 'none') {
+        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(createExecTree(node))
+      } else if (node.id == input) {
+        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(editor.value.getNodeFromId(input).data.val)
+      }
+    }
+  }
+  return nodeExec;
 }
 
 onMounted(() => {
@@ -82,7 +121,7 @@ onMounted(() => {
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     console.log(editor.value.getNodeFromId(id));
-    nodeList.push({'id':id, 'connected':false})
+    nodeList.push({'id':id, 'output':false, 'input_from':'none'})
   })
 
   // Keeps track of deleted nodes
@@ -91,50 +130,44 @@ onMounted(() => {
     console.log('Removed id:', id, nodeList)
   })
 
+  //Checks if the created connection is valid
   editor.value.on('connectionCreated', (data) => {
     let input = editor.value.getNodeFromId(data.input_id);
     let output = editor.value.getNodeFromId(data.output_id);
 
     if (input.class == 'Operation') {
-      if (input.data.opr != '' && output.data.value != '') {
-        let id = 'Operation' + data.input_id;
-        let opr = input.data.opr;
-        let val = output.data.value;
-        execTree[id]? console.log(execTree) : execTree[id] = {[opr]:['X', 'X']}
-        data.input_class=='input_1'? execTree[id][opr][0] = val : execTree[id][opr][1] = val;
-        for (let node of nodeList) {
-          if (node.id == data.output_id) {
-            node.connected = true
-          }
-        }
+      if (input.data.val != '' && output.data.val != '') {
+        addConnection(data.output_id, data.input_id)
       } else {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         alert('Something is not defined')
       }
     } else if (input.class == 'Value') {
-      if (input.data.value) {
-        if (output.class == 'Operation') {
-          let oprid = 'Operation' + data.output_id;
-          let id = 'Assignation' + data.input_id;
-          execTree[oprid][id] = input.data.value;
-        } else {
-          // covertir en Array?
-          let id = 'Assignation' + data.input_id;
-          let name = input.data.value;
-          let val = output.data.value;
-          execTree[id] = {[name]:val};
-        }
+      if (input.data.val) {
+        addConnection(data.output_id, data.input_id)
       } else{
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         alert('Missing name in assignation node!')
       }
-    } else {
-      // Algo?
     }
   })
 
+  //Updates connection info on removed connection event
   editor.value.on('connectionRemoved', (data) => {
-    // TODO
+    for (let node of nodeList) {
+      if (data.output_id == node.id) {
+        node.output = false
+      } else if (data.input_id == node.id) {
+        let inputs = node.input_from.split('')
+        if (inputs.length == 1) {
+          node.input_from = 'none'
+        } else if (inputs.indexOf(data.output_id) < 1) {
+          node.input_from = inputs[2]
+        } else {
+          node.input_from = inputs[0]
+        }
+      }
+    }
   })
 
   editor.value.start();
