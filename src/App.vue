@@ -1,26 +1,20 @@
 <script setup>
 import Drawflow from 'drawflow'
-// Necesario?
 import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
-// Separar en distintos componentes?
-import nodes from './components/nodes.vue'
+import * as components from './components/nodes.vue'
 
 const showGenerator = ref(false)
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
-  {name:'Number', type:'num', class:'Logic', vars:{'value':''}},
-  {name:'Assignation', type:'assign', class:'Logic', in:1, vars:{'value':''}},
-  {name:'Addition', type:'add', class:'Operation', in:2},
-  {name:'Substraction', type:'sub', class:'Operation', in:2},
-  {name:'Multiplication', type:'mul', class:'Operation', in:2},
-  {name:'Division', type:'div', class:'Operation', in:2}
+  {name:'number', type:'num', class:'Value', vars:{'val':''}},
+  {name:'assignation', type:'assign', class:'Value', in:1, vars:{'val':''}},
+  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'val':'','aNum':'', 'bNum':''}},
 ])
-var nodeCount;
+var nodeList = [];
 
-// Cambiar nombre?
-function newNode(data) {
+function addNode(data) {
   editor.value.addNode(
     data.name,
     data.in? data.in : 0,
@@ -33,21 +27,62 @@ function newNode(data) {
     'vue')
 }
 
+// Modificar
 function runGenerator() {
-  if (nodeCount) {
-    console.log(nodeCount)
-    let nodesData = []
-    for (let i = 1; i <= nodeCount; i++) {
-      nodesData.push(editor.value.getNodeFromId(i))
+  if (nodeList.length) {
+    let endNode;
+    for (let node of nodeList) {
+      if (node.output == false && endNode == undefined) {
+        endNode = node
+      } else if (node.output == false) {
+        endNode = 'err'
+      }
     }
-    console.log(nodesData)
-    nodesData.sort((node) => {
-      
-    })
-    showGenerator.value = !showGenerator.value
+    if (endNode != 'err') {
+      console.log(nodeList)
+      var execTree = createExecTree(endNode)
+      showGenerator.value = true
+      console.log(execTree)
+      //sendDataToApi
+    } else {
+      alert('There are more than one unconnected nodes') //mejorar
+    }
   } else {
     alert('You haven\'t defined any nodes');
   }
+}
+
+function addConnection(output_id, input_id) {
+  for (let node of nodeList) {
+    if (output_id == node.id) {
+      node.output = true
+    } else if (input_id == node.id) {
+      if (node.input_from == 'none') {
+        node.input_from = output_id
+      } else {
+        node.input_from += ':' + output_id
+      }
+    }
+  }
+}
+
+function createExecTree(endNode) {
+  let nodeInfo = editor.value.getNodeFromId(endNode.id);
+  var nodeExec = {[nodeInfo.name + ':' + nodeInfo.data.val]:[]};
+  let inputs = endNode.input_from.split('')
+  if (inputs.length > 1) {
+    inputs.splice(1, 1)
+  }
+  for (let input of inputs) {
+    for (let node of nodeList) {
+      if (node.id == input && node.input_from != 'none') {
+        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(createExecTree(node))
+      } else if (node.id == input) {
+        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(editor.value.getNodeFromId(input).data.val)
+      }
+    }
+  }
+  return nodeExec;
 }
 
 onMounted(() => {
@@ -57,20 +92,82 @@ onMounted(() => {
   editor.value = new Drawflow(id, Vue);
 
   // Registers all nodes
-  for (let i = 0; i < nodeData.value.length; i++) {
-    editor.value.registerNode(
-      nodeData.value[i].type,
-      nodes,
-      {type:nodeData.value[i].type},
-      {title:() => nodeData.value[i].name}
-    )
+  for (let node of nodeData.value) {
+    if (node.class == 'Operation') {
+      editor.value.registerNode(
+        node.type,
+        components.operations,
+        {},
+        {}
+      )
+    } else if (node.class == 'Value') {
+      editor.value.registerNode(
+        node.type,
+        components.datatypes,
+        {'type':node.type},
+        {}
+      )
+    } else {
+      editor.value.registerNode(
+        node.type,
+        components.datatypes,
+        {},
+        {}
+      )
+    }
   }
 
   // Keeps track of new created nodes
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     console.log(editor.value.getNodeFromId(id));
-    nodeCount? nodeCount++ : nodeCount = 1;
+    nodeList.push({'id':id, 'output':false, 'input_from':'none'})
+  })
+
+  // Keeps track of deleted nodes
+  editor.value.on('nodeRemoved', (id) => {
+    nodeList = nodeList.filter(node => node.id!=id)
+    console.log('Removed id:', id, nodeList)
+  })
+
+  //Checks if the created connection is valid
+  editor.value.on('connectionCreated', (data) => {
+    let input = editor.value.getNodeFromId(data.input_id);
+    let output = editor.value.getNodeFromId(data.output_id);
+
+    if (input.class == 'Operation') {
+      if (input.data.val != '' && output.data.val != '') {
+        addConnection(data.output_id, data.input_id)
+      } else {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        alert('Something is not defined')
+      }
+    } else if (input.class == 'Value') {
+      if (input.data.val) {
+        addConnection(data.output_id, data.input_id)
+      } else{
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        alert('Missing name in assignation node!')
+      }
+    }
+  })
+
+  //Updates connection info on removed connection event
+  editor.value.on('connectionRemoved', (data) => {
+    for (let node of nodeList) {
+      if (data.output_id == node.id) {
+        node.output = false
+      } else if (data.input_id == node.id) {
+        let inputs = node.input_from.split('')
+        if (inputs.length == 1) {
+          node.input_from = 'none'
+        } else if (inputs.indexOf(data.output_id) < 1) {
+          node.input_from = inputs[2]
+        } else {
+          node.input_from = inputs[0]
+        }
+      }
+    }
   })
 
   editor.value.start();
@@ -84,7 +181,7 @@ onMounted(() => {
       <h3 class="test">Blocks</h3>
       <ul>
         <li v-for="data in nodeData">
-          <button @click="newNode(data)">New {{data.name}}</button>
+          <button @click="addNode(data)">New {{data.name}}</button>
         </li>
       </ul>
       <button>New function</button>
@@ -94,7 +191,7 @@ onMounted(() => {
     </div>
     <div id="drawflow"></div>
     <div v-if="showGenerator" class="right-panel">
-      <button>X</button>
+      <button @click="showGenerator=false">X</button>
       <div>
         <p>Generating...</p>
       </div>
@@ -151,12 +248,12 @@ onMounted(() => {
 
 <style>
 .drawflow .parent-node .drawflow-node {
-    background-color: brown;
+    background-color: rgb(212, 216, 218);
     width: auto;
 }
 
-.drawflow .parent-node .drawflow-node:hover {
-    background-color: lightsalmon;
+.drawflow .parent-node .drawflow-node.selected {
+    background-color: rgb(190, 207, 216);
 }
 
 .drawflow .parent-node .drawflow-node .output {
@@ -166,4 +263,9 @@ onMounted(() => {
 .drawflow .parent-node .drawflow-node .output:hover {
   background-color: coral;
 }
+
+.drawflow .drawflow-node.Operation .input {
+  top: 38px;
+}
+
 </style>
