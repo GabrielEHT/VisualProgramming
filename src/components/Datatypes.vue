@@ -1,13 +1,22 @@
 <script setup>
+  import { ref, watch } from 'vue'
+
+  const num = ref('')
+
+  watch(num, (val) => {
+    console.log('Actual value', parseInt(val))
+  })
+
   const props = defineProps({
     type:''
   })
+
 </script>
 
 <template>
   <div v-if="props.type=='num'">
     <h1>Number</h1>
-    <input type="text" placeholder="Enter a number" df-val>
+    <input v-model="num" type="text" placeholder="Enter a number" df-val>
   </div>
   <div v-else-if="props.type=='assign'">
     <h1>Assignation</h1>

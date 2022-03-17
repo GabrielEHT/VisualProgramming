@@ -2,7 +2,7 @@
 import Drawflow from 'drawflow'
 import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
-import * as components from './components/nodes.vue'
+import * as components from './components/nodes.js'
 
 const showGenerator = ref(false)
 const editor = shallowRef({})
@@ -275,6 +275,15 @@ onMounted(() => {
 
 .drawflow .drawflow-node.Operation .input {
   top: 38px;
+}
+
+.drawflow .drawflow-node.Operation .output {
+  top: 49px;
+}
+
+.drawflow .drawflow-node.Value .input,
+.drawflow .drawflow-node.Value .output{
+  top: 22px;
 }
 
 </style>
