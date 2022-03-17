@@ -43,7 +43,7 @@ function runGenerator() {
       var execTree = createExecTree(endNode)
       showGenerator.value = true
       console.log(execTree)
-      //sendDataToApi
+      sendData()
     } else {
       alert('There are more than one unconnected nodes') //mejorar
     }
@@ -83,6 +83,15 @@ function createExecTree(endNode) {
     }
   }
   return nodeExec;
+}
+
+function sendData() {
+  const http = new XMLHttpRequest()
+  http.open('GET', 'http://localhost:8080/', true)
+  http.addEventListener('load', () => {
+    console.log(JSON.parse(http.response))
+  })
+  http.send()
 }
 
 onMounted(() => {
