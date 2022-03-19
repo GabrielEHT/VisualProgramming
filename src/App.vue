@@ -4,7 +4,7 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
-const script = ref(null)
+const code = ref(null)
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
@@ -13,6 +13,125 @@ const nodeData = ref([
   {name:'operation', type:'operations', class:'Operation', in:2, vars:{'val':'','aNum':'', 'bNum':''}},
 ])
 var nodeList = [];
+
+function getLastNode() {
+  var lastNode;
+  for (let node of nodeList) {
+    if (node.output == false && lastNode == undefined) {
+      lastNode = node
+    } else if (node.output == false) {
+      return 'err'
+    }
+  }
+  return lastNode
+}
+
+function renderCode() {
+  if (nodeList.length) {
+    var lastNode = getLastNode();
+    if (lastNode != 'err') {
+      console.log(nodeList)
+      code.value.data = createScript([generateCode(lastNode)])
+    } else {
+      alert('You left some unconnected nodes!')
+    }
+  } else {
+    alert('You haven\'t created any nodes!');
+  }
+}
+
+function createScript(data) {
+  let script = new Blob(data, {type:"text/plain;charset=utf-8"})
+  let scriptUrl = window.URL.createObjectURL(script)
+  return scriptUrl
+}
+
+function generateCode(lastNode) {
+  var codeLine;
+  var formated = false;
+  var nodeInfo;
+  var inputs;
+
+  if (typeof lastNode == 'string') {
+    nodeInfo = editor.value.getNodeFromId(lastNode);
+    inputs = []
+  } else {
+    nodeInfo = editor.value.getNodeFromId(lastNode.id);
+    inputs = lastNode.input_from.split('')
+    if (inputs.length > 1) {
+      inputs.splice(1, 1)
+    }
+  }
+
+  if (nodeInfo.name == 'assignation') {
+    codeLine = nodeInfo.data.val + ' = '
+  } else if (nodeInfo.name == 'operation') {
+    let symbol;
+    if (nodeInfo.data.val == 'add') {
+      symbol = '+'
+    } else if (nodeInfo.data.val == 'sub') {
+      symbol = '-'
+    } else if (nodeInfo.data.val == 'sub') {
+      symbol = '*'
+    } else if (nodeInfo.data.val == 'sub') {
+      symbol = '/'
+    }
+    codeLine = `${generateCode(inputs[0])} + ${generateCode(inputs[1])}`
+    formated = true;
+  } else {
+    codeLine = nodeInfo.data.val
+  }
+
+  if (formated == false) {
+    for (let input of inputs) {
+      for (let node of nodeList) {
+        if (node.id == input) {
+          codeLine += generateCode(node)
+        }
+      }
+    }
+  }
+
+  return codeLine;
+}
+
+function sendExecTree() {
+  var lastNode = getLastNode()
+  if (lastNode != 'err') {
+    sendData(generateExecTree(lastNode))
+  } else {
+    alert('Unexpected error happened')
+  }
+}
+
+function generateExecTree(lastNode) {
+  let nodeInfo = editor.value.getNodeFromId(lastNode.id);
+  var nodeExec = {[nodeInfo.name + ':' + nodeInfo.data.val]:[]};
+  let inputs = lastNode.input_from.split('')
+  if (inputs.length > 1) {
+    inputs.splice(1, 1)
+  }
+  for (let input of inputs) {
+    for (let node of nodeList) {
+      if (node.id == input && node.input_from != 'none') {
+        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(generateExecTree(node))
+      } else if (node.id == input) {
+        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(editor.value.getNodeFromId(input).data.val)
+      }
+    }
+  }
+  return nodeExec;
+}
+
+async function sendData(data) {
+  const http = new XMLHttpRequest()
+  http.open('POST', 'http://localhost:8080/', true)
+  http.addEventListener('load', () => {
+    console.log(JSON.parse(http.response))
+  })
+  await http.send(JSON.stringify(data))
+}
+
 
 function addNode(data) {
   editor.value.addNode(
@@ -27,29 +146,6 @@ function addNode(data) {
     'vue')
 }
 
-// Modificar
-function runGenerator() {
-  if (nodeList.length) {
-    let endNode;
-    for (let node of nodeList) {
-      if (node.output == false && endNode == undefined) {
-        endNode = node
-      } else if (node.output == false) {
-        endNode = 'err'
-      }
-    }
-    if (endNode != 'err') {
-      console.log(nodeList)
-      var code = [createExecTree(endNode)]
-      script.value.data = createScript(code)
-    } else {
-      alert('There are more than one unconnected nodes') //mejorar
-    }
-  } else {
-    alert('You haven\'t defined any nodes');
-  }
-}
-
 function addConnection(output_id, input_id) {
   for (let node of nodeList) {
     if (output_id == node.id) {
@@ -62,66 +158,6 @@ function addConnection(output_id, input_id) {
       }
     }
   }
-}
-
-function createExecTree(endNode) {
-  var codeLine;
-  var formated = false;
-  var nodeInfo;
-  var inputs;
-
-  if (typeof endNode == 'string') {
-    nodeInfo = editor.value.getNodeFromId(endNode);
-    inputs = []
-  } else {
-    nodeInfo = editor.value.getNodeFromId(endNode.id);
-    inputs = endNode.input_from.split('')
-    if (inputs.length > 1) {
-      inputs.splice(1, 1)
-    }
-  }
-
-  if (nodeInfo.name == 'assignation') {
-    codeLine = nodeInfo.data.val + ' = '
-  } else if (nodeInfo.name == 'operation') {
-    if (nodeInfo.data.val == 'add') {
-      codeLine = `${createExecTree(inputs[0])} + ${createExecTree(inputs[1])}`
-    } else if (nodeInfo.data.val == 'sub') {
-      codeLine = ' - '
-    }
-    formated = true;
-  } else {
-    codeLine = nodeInfo.data.val
-  }
-
-  if (formated == false) {
-    for (let input of inputs) {
-      for (let node of nodeList) {
-        if (node.id == input) {
-          codeLine += createExecTree(node)
-        }
-      }
-    }
-  }
-
-  return codeLine;
-}
-
-function sendData() {
-  const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/', true)
-  http.addEventListener('load', () => {
-    console.log(JSON.parse(http.response))
-  })
-  http.send()
-}
-
-function createScript(data) {
-  var scriptData = new Blob(data, {type:"text/plain;charset=utf-8"})
-
-  var scriptUrl = window.URL.createObjectURL(scriptData)
-
-  return scriptUrl
 }
 
 onMounted(() => {
@@ -226,23 +262,18 @@ onMounted(() => {
       <button>New function</button>
       <button>New if-else block</button>
       <button>New for loop</button>
-      <button @click="runGenerator">generate code</button>
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
-      <button>Do stuff</button>
-      <div id="list"><object ref="script" width=200 height=400></object></div>
+      <button @click="renderCode" id="generate">generate code</button>
+      <div id="list"><object ref="code" width=200 height=400></object></div>
+      <button @click="sendExecTree()" id="execute">Execute code</button>
     </div>
   </div>
 </template>
 
 <style scoped>
 
-#list p {
-  font: Arial;
-  font-size: 14px;
-  background-color: white;
-}
 .box {
   position: absolute;
   display: flex;
@@ -281,14 +312,28 @@ onMounted(() => {
 
 .right-panel button {
   position: absolute;
-  top: 0px;
   right: 0px;
+}
+
+#generate{
+  top: 0px;
+}
+
+#execute {
+  bottom: 0px;
 }
 
 .right-panel div {
   position: relative;
   top: 30px;
 }
+
+#list object {
+  font: Arial;
+  font-size: 14px;
+  background-color: white;
+}
+
 </style>
 
 <style>
