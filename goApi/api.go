@@ -1,41 +1,95 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
+	"fmt"
 	"log"
+	"strings"
+	"strconv"
+	"net/http"
+	"encoding/json"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	//"fmt"
 )
 
-type Test struct {
-	Title string
-	Body string
-	Moment int
-}
-
-type Test2 struct {
-	Name string
-	Instruction []string
-}
-
-func myHandler(w http.ResponseWriter, r *http.Request) {
-	t := Test{"A test", "Hello world", 1253}
-	json.NewEncoder(w).Encode(t)
+func checkStatus(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, "Ok")
 }
 
 func executeCode(w http.ResponseWriter, r *http.Request) {
 	var t map[string]interface{}
-	//var t Test2
 	err := json.NewDecoder(r.Body).Decode(&t)
+
 	if err != nil {
 		log.Println(err)
 	}
-	for s := range t {
-		log.Println(s)
+
+	result := pythonExecution(t)
+	fmt.Fprint(w, result)
+}
+
+func pythonExecution(t map[string]interface{}) string {
+	var r string
+	var err interface{}
+
+	for c := range t {
+		s := strings.Split(c, ":")
+		switch s[0] {
+		case "assignation":
+			err = doAssign(t[c])
+		case "operation":
+			r, err = doOperation(s[1], t[c])
+		}
 	}
-	json.NewEncoder(w).Encode(&t)
+
+	if err != nil {
+		return "An error ocurred"
+	}
+
+	return r
+}
+
+func doAssign(val interface{}) error {
+	return nil
+}
+
+func doOperation(opr string, i interface{}) (string, error) {
+	s := i.([]interface{})
+	var n1, n2 string
+	var r int;
+	for _, n := range s {
+		log.Printf("Number type and value: %v %T\n", n, n)
+		switch n.(type) {
+		case string:
+			if n1 == "" {
+				n1 = n.(string)
+			} else {
+				n2 = n.(string)
+			}
+		default:
+			doOperation("add", n)
+		}
+	}
+
+	i1, err1 := strconv.Atoi(n1)
+	i2, err2 := strconv.Atoi(n2)
+
+	if err1 != nil {
+		return "", err1
+	} else if err2 != nil {
+		return "", err2
+	}
+
+	switch opr {
+	case "add":
+		r = i1 + i2
+	case "sub":
+		r = i1 - i2
+	case "mul":
+		r = i1 * i2
+	case "div":
+		r = i1 / i2	}
+
+	return strconv.Itoa(r), nil
 }
 
 func main() {
@@ -43,7 +97,7 @@ func main() {
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.SetHeader("Access-Control-Allow-Origin", "*"))
-	router.Get("/", myHandler)
+	router.Get("/", checkStatus)
 	router.Post("/", executeCode)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

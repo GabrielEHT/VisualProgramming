@@ -98,7 +98,9 @@ function generateCode(lastNode) {
 function sendExecTree() {
   var lastNode = getLastNode()
   if (lastNode != 'err') {
-    sendData(generateExecTree(lastNode))
+    let execTree = generateExecTree(lastNode)
+    console.log(execTree)
+    sendData(execTree)
   } else {
     alert('Unexpected error happened')
   }
@@ -127,7 +129,12 @@ async function sendData(data) {
   const http = new XMLHttpRequest()
   http.open('POST', 'http://localhost:8080/', true)
   http.addEventListener('load', () => {
-    console.log(JSON.parse(http.response))
+    let r = http.response
+    if (typeof r == "string") {
+      console.log(r)
+    } else {
+      console.log(JSON.parse(r))
+    }
   })
   await http.send(JSON.stringify(data))
 }
