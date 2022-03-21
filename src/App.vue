@@ -8,9 +8,9 @@ const code = ref(null)
 const editor = shallowRef({})
 // Faltan nodos
 const nodeData = ref([
-  {name:'number', type:'num', class:'Value', vars:{'val':''}},
-  {name:'assignation', type:'assign', class:'Value', in:1, vars:{'val':''}},
-  {name:'operation', type:'operations', class:'Operation', in:2, vars:{'val':'','aNum':'', 'bNum':''}},
+  {name:'number', type:'num', class:'Value'},
+  {name:'assignation', type:'assign', class:'Value', in:1},
+  {name:'operation', type:'operations', class:'Operation', in:2},
 ])
 var nodeList = [];
 
@@ -141,6 +141,12 @@ async function sendData(data) {
 
 
 function addNode(data) {
+  var vars = {}
+  if (data.class == 'Operation') {
+    vars = {'val':'', 'aNum':'', 'bNum':''}
+  } else if (data.class == 'Value') {
+    vars = {'val':''}
+  }
   editor.value.addNode(
     data.name,
     data.in? data.in : 0,
@@ -148,9 +154,10 @@ function addNode(data) {
     0,
     0,
     data.class,
-    data.vars? data.vars : {},
+    vars,
     data.type,
-    'vue')
+    'vue'
+  )
 }
 
 function addConnection(output_id, input_id) {
@@ -175,28 +182,22 @@ onMounted(() => {
 
   // Registers all nodes
   for (let node of nodeData.value) {
+    var comp;
+    var props = {};
     if (node.class == 'Operation') {
-      editor.value.registerNode(
-        node.type,
-        components.operations,
-        {},
-        {}
-      )
+      comp = components.operations
     } else if (node.class == 'Value') {
-      editor.value.registerNode(
-        node.type,
-        components.datatypes,
-        {'type':node.type},
-        {}
-      )
+      comp = components.datatypes
+      props = {'type':node.type}
     } else {
-      editor.value.registerNode(
-        node.type,
-        components.datatypes,
-        {},
-        {}
-      )
+      comp = components.datatypes
     }
+    editor.value.registerNode(
+      node.type,
+      comp,
+      props,
+      {}
+    )
   }
 
   // Keeps track of new created nodes
