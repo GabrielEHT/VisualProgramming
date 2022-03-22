@@ -6,10 +6,9 @@ import * as components from './components/nodes.js'
 
 const code = ref(null)
 const editor = shallowRef({})
-// Faltan nodos
 const nodeData = ref([
-  {name:'number', type:'num', class:'Value'},
   {name:'assignation', type:'assign', class:'Value', in:1},
+  {name:'number', type:'num', class:'Value'},
   {name:'operation', type:'operations', class:'Operation', in:2},
 ])
 var nodeList = [];
@@ -71,12 +70,12 @@ function generateCode(lastNode) {
       symbol = '+'
     } else if (nodeInfo.data.val == 'sub') {
       symbol = '-'
-    } else if (nodeInfo.data.val == 'sub') {
+    } else if (nodeInfo.data.val == 'mul') {
       symbol = '*'
-    } else if (nodeInfo.data.val == 'sub') {
+    } else if (nodeInfo.data.val == 'div') {
       symbol = '/'
     }
-    codeLine = `${generateCode(inputs[0])} + ${generateCode(inputs[1])}`
+    codeLine = `${generateCode(inputs[0])} ${symbol} ${generateCode(inputs[1])}`
     formated = true;
   } else {
     codeLine = nodeInfo.data.val
@@ -160,7 +159,7 @@ function addNode(data) {
   )
 }
 
-function addConnection(output_id, input_id) {
+function addConnection(output_id, input_id, input_class) {
   for (let node of nodeList) {
     if (output_id == node.id) {
       node.output = true
@@ -168,7 +167,11 @@ function addConnection(output_id, input_id) {
       if (node.input_from == 'none') {
         node.input_from = output_id
       } else {
-        node.input_from += ':' + output_id
+        if (input_class == 'input_1') {
+          node.input_from = output_id + ':' + node.input_from
+        } else {
+          node.input_from += ':' + output_id
+        }
       }
     }
   }
@@ -220,7 +223,7 @@ onMounted(() => {
 
     if (input.class == 'Operation') {
       if (input.data.val != '' && output.data.val != '') {
-        addConnection(data.output_id, data.input_id)
+        addConnection(data.output_id, data.input_id, data.input_class)
       } else {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         alert('Something is not defined')
@@ -293,7 +296,7 @@ onMounted(() => {
 
 .left-panel {
   height: 100%;
-  width: 18%;
+  width: 20%;
   top: 0px;
   left: 0px;
   background: rgb(218, 230, 233);
@@ -303,6 +306,10 @@ onMounted(() => {
 .left-panel * {
   font-size: medium;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.left-panel ul {
+  list-style-type: none;
 }
 
 #drawflow {

@@ -5,6 +5,8 @@
       <option value="">Select an operation</option>
       <option value="add">Addition</option>
       <option value="sub">Substraction</option>
+      <option value="mul">Multiplication</option>
+      <option value="div">Division</option>
     </select>
     <div>
       <input type="text" placeholder="Number A" id="a" df-aNum>

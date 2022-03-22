@@ -28,14 +28,14 @@ func executeCode(w http.ResponseWriter, r *http.Request) {
 }
 
 func pythonExecution(t map[string]interface{}) string {
-	var r string
-	var err interface{}
+	var r string;
+	var err error;
 
 	for c := range t {
 		s := strings.Split(c, ":")
 		switch s[0] {
 		case "assignation":
-			err = doAssign(t[c])
+			r, err = doAssign(t[c])
 		case "operation":
 			r, err = doOperation(s[1], t[c])
 		}
@@ -48,8 +48,30 @@ func pythonExecution(t map[string]interface{}) string {
 	return r
 }
 
-func doAssign(val interface{}) error {
-	return nil
+func doAssign(val interface{}) (string, error) {
+	var r string;
+	var err error;
+	s := val.([]interface{})
+	for _, v := range s {
+		switch v.(type) {
+		case string:
+			r = v.(string)
+		case map[string]interface{}:
+			m := v.(map[string]interface{})
+			for opr, num := range m {
+				opr = strings.Split(opr, ":")[1]
+				r, err = doOperation(opr, num)
+			}
+		default:
+			log.Printf("Type: %T\n", v)
+			r = "default"
+		}
+	}
+	if err != nil {
+		return "Error in assign", err
+	}
+
+	return r, nil
 }
 
 func doOperation(opr string, i interface{}) (string, error) {
@@ -87,8 +109,10 @@ func doOperation(opr string, i interface{}) (string, error) {
 	case "mul":
 		r = i1 * i2
 	case "div":
-		r = i1 / i2	}
+		r = i1 / i2
+	}
 
+	log.Println(r)
 	return strconv.Itoa(r), nil
 }
 
