@@ -8,10 +8,8 @@
       <option value="mul">Multiplication</option>
       <option value="div">Division</option>
     </select>
-    <div>
-      <input type="text" placeholder="Number A" id="a" df-aNum>
-      <input type="text" placeholder="Number B" id="b" df-bNum>
-    </div>
+    <h2>A value</h2>
+    <h2>B value</h2>
   </div>
 </template>
 
@@ -30,6 +28,11 @@
 h1 {
   font-family: Arial, Helvetica, sans-serif;
   font-size: medium;
+}
+
+h2 {
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: small;
 }
 
 select {

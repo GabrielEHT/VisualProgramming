@@ -10,6 +10,8 @@ const nodeData = ref([
   {name:'assignation', type:'assign', class:'Value', in:1},
   {name:'number', type:'num', class:'Value'},
   {name:'operation', type:'operations', class:'Operation', in:2},
+  {name:'if-else block', type:'flowcon', class:'Conditional', in:1, out:2},
+  {name:'for loop', type:'flowloop', class:'Loop', in:1}
 ])
 var nodeList = [];
 
@@ -141,9 +143,9 @@ async function sendData(data) {
 
 function addNode(data) {
   var vars = {}
-  if (data.class == 'Operation') {
-    vars = {'val':'', 'aNum':'', 'bNum':''}
-  } else if (data.class == 'Value') {
+  if (data.class == 'Conditional') {
+    vars = {'val':'', 'con':''}
+  } else {
     vars = {'val':''}
   }
   editor.value.addNode(
@@ -192,6 +194,10 @@ onMounted(() => {
     } else if (node.class == 'Value') {
       comp = components.datatypes
       props = {'type':node.type}
+    } else if (node.class == 'Conditional') {
+      comp = components.conditional
+    } else if (node.class == 'Loop') {
+      comp = components.loop
     } else {
       comp = components.datatypes
     }
@@ -270,9 +276,6 @@ onMounted(() => {
           <button @click="addNode(data)">New {{data.name}}</button>
         </li>
       </ul>
-      <button>New function</button>
-      <button>New if-else block</button>
-      <button>New for loop</button>
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
@@ -370,7 +373,7 @@ onMounted(() => {
 }
 
 .drawflow .drawflow-node.Operation .input {
-  top: 38px;
+  top: 34px;
 }
 
 .drawflow .drawflow-node.Operation .output {
@@ -380,6 +383,11 @@ onMounted(() => {
 .drawflow .drawflow-node.Value .input,
 .drawflow .drawflow-node.Value .output{
   top: 22px;
+}
+
+.drawflow .drawflow-node.Loop .output {
+  top: 42px;
+  right: -4px;
 }
 
 </style>

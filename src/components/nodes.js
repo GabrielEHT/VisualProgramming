@@ -1,7 +1,11 @@
 import OperationsVue from './Operations.vue';
 import DatatypesVue from './Datatypes.vue';
+import ForloopVue from './Forloop.vue';
+import IfelseVue from './Ifelse.vue';
 
 export {
   OperationsVue as operations,
-  DatatypesVue as datatypes
+  DatatypesVue as datatypes,
+  ForloopVue as loop,
+  IfelseVue as conditional
 }
