@@ -24,11 +24,11 @@ function saveCode() {
   script.arrayBuffer()
   .then((data) => {tempSave.code = data})
   tempSave.nodes = editor.value.export()
-  const http = new XMLHttpRequest()
+  /*const http = new XMLHttpRequest()
   console.log(tempSave)
   http.open('POST', 'http://localhost:8080/scripts')
   http.addEventListener('load', () => {console.log(http.response)})
-  http.send(JSON.stringify(tempSave))
+  http.send(JSON.stringify(tempSave))*/
 }
 
 function loadCode() {
@@ -78,14 +78,11 @@ function generateCode(lastNode) {
 
   if (typeof lastNode == 'string') {
     nodeInfo = editor.value.getNodeFromId(lastNode);
-    inputs = []
   } else {
     nodeInfo = editor.value.getNodeFromId(lastNode.id);
-    inputs = lastNode.input_from.split('')
-    if (inputs.length > 1) {
-      inputs.splice(1, 1)
-    }
   }
+
+  inputs = nodeInfo.inputs
 
   if (nodeInfo.name == 'assignation') {
     codeLine = nodeInfo.data.val + ' = '
@@ -100,16 +97,18 @@ function generateCode(lastNode) {
     } else if (nodeInfo.data.val == 'div') {
       symbol = '/'
     }
-    codeLine = `${generateCode(inputs[0])} ${symbol} ${generateCode(inputs[1])}`
+    let aNum = generateCode(inputs.input_1.connections[0].node)
+    let bNum = generateCode(inputs.input_2.connections[0].node)
+    codeLine = `${aNum} ${symbol} ${bNum}`
     formated = true;
   } else {
     codeLine = nodeInfo.data.val
   }
 
-  if (formated == false) {
-    for (let input of inputs) {
+  if (formated == false && nodeInfo.name != 'number') {
+    for (let input in inputs) {
       for (let node of nodeList) {
-        if (node.id == input) {
+        if (node.id == inputs[input].connections[0].node) {
           codeLine += generateCode(node)
         }
       }
@@ -163,6 +162,13 @@ async function sendData(data) {
   await http.send(JSON.stringify(data))
 }
 
+function addConnection(output_id) {
+  for (let node of nodeList) {
+    if (output_id == node.id) {
+      node.output = true
+    }
+  }
+}
 
 function addNode(data) {
   var vars = {}
@@ -182,24 +188,6 @@ function addNode(data) {
     data.type,
     'vue'
   )
-}
-
-function addConnection(output_id, input_id, input_class) {
-  for (let node of nodeList) {
-    if (output_id == node.id) {
-      node.output = true
-    } else if (input_id == node.id) {
-      if (node.input_from == 'none') {
-        node.input_from = output_id
-      } else {
-        if (input_class == 'input_1') {
-          node.input_from = output_id + ':' + node.input_from
-        } else {
-          node.input_from += ':' + output_id
-        }
-      }
-    }
-  }
 }
 
 onMounted(() => {
@@ -232,11 +220,11 @@ onMounted(() => {
     )
   }
 
-  // Keeps track of new created nodes
+  // Keeps track of created nodes
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     console.log(editor.value.getNodeFromId(id));
-    nodeList.push({'id':id, 'output':false, 'input_from':'none'})
+    nodeList.push({'id':id, 'output':false})
   })
 
   // Keeps track of deleted nodes
@@ -251,36 +239,21 @@ onMounted(() => {
     let output = editor.value.getNodeFromId(data.output_id);
 
     if (input.class == 'Operation') {
-      if (input.data.val != '' && output.data.val != '') {
-        addConnection(data.output_id, data.input_id, data.input_class)
-      } else {
+      if (input.data.val == '') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        alert('Something is not defined')
+        alert('You have to choose an operation!')
+      } else if (output.data.val == '') {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        alert('The node you are connecting doesn\'t has value!')
+      } else {
+        addConnection(data.output_id)
       }
     } else if (input.class == 'Value') {
-      if (input.data.val) {
-        addConnection(data.output_id, data.input_id)
-      } else{
+      if (input.data.val == '') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         alert('Missing name in assignation node!')
-      }
-    }
-  })
-
-  //Updates connection info on removed connection event
-  editor.value.on('connectionRemoved', (data) => {
-    for (let node of nodeList) {
-      if (data.output_id == node.id) {
-        node.output = false
-      } else if (data.input_id == node.id) {
-        let inputs = node.input_from.split('')
-        if (inputs.length == 1) {
-          node.input_from = 'none'
-        } else if (inputs.indexOf(data.output_id) < 1) {
-          node.input_from = inputs[2]
-        } else {
-          node.input_from = inputs[0]
-        }
+      } else {
+        addConnection(data.output_id)
       }
     }
   })
@@ -325,14 +298,14 @@ onMounted(() => {
 
 #scriptName {
   position: absolute;
-  left: 200px;
+  left: 238px;
   top: 5px;
   z-index: 1;
 }
 
 .left-panel {
   height: 100%;
-  width: 20%;
+  width: 25%;
   top: 0px;
   left: 0px;
   background: rgb(218, 230, 233);
@@ -342,6 +315,15 @@ onMounted(() => {
 .left-panel * {
   font-size: medium;
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.left-panel h3 {
+  position: relative;
+  left: 60px;
+  border: 5px solid black;
+  width: 52px;
+  padding: 10px;
+  background-color: white;
 }
 
 .left-panel ul {
@@ -363,7 +345,7 @@ onMounted(() => {
 
 .right-panel button {
   position: relative;
-  height: 28px;
+  height: 30px;
 }
 
 .right-panel .database {
@@ -373,16 +355,16 @@ onMounted(() => {
 
 #generate{
   left: 5px;
-  top: 5px;
+  top: 15px;
 }
 
 #execute {
-  top: 5px;
+  top: 15px;
   right: -48px;
 }
 
 #save {
-  right: 178px;
+  right: 170px;
 }
 
 #load {
@@ -398,11 +380,15 @@ onMounted(() => {
   font: Arial;
   font-size: 14px;
   background-color: white;
+  width: 97%;
+  height: 512px;
+  margin-left: 4px;
 }
 
 </style>
 
 <style>
+
 .drawflow .parent-node .drawflow-node {
     background-color: rgb(212, 216, 218);
     width: auto;
