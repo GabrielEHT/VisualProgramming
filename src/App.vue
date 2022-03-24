@@ -6,6 +6,7 @@ import * as components from './components/nodes.js'
 
 const code = ref(null)
 const editor = shallowRef({})
+const name = ref("")
 const nodeData = ref([
   {name:'assignation', type:'assign', class:'Value', in:1},
   {name:'number', type:'num', class:'Value'},
@@ -14,6 +15,27 @@ const nodeData = ref([
   {name:'for loop', type:'flowloop', class:'Loop', in:1}
 ])
 var nodeList = [];
+var tempSave = {};
+var script;
+
+function saveCode() {
+  tempSave.name = name.value
+  tempSave.list = nodeList
+  script.arrayBuffer()
+  .then((data) => {tempSave.code = data})
+  tempSave.nodes = editor.value.export()
+  const http = new XMLHttpRequest()
+  console.log(tempSave)
+  http.open('POST', 'http://localhost:8080/scripts')
+  http.addEventListener('load', () => {console.log(http.response)})
+  http.send(JSON.stringify(tempSave))
+}
+
+function loadCode() {
+  nodeList = tempSave.list
+  code.value.data = createScript([tempSave.code])
+  editor.value.import(tempSave.nodes)
+}
 
 function getLastNode() {
   var lastNode;
@@ -42,12 +64,13 @@ function renderCode() {
 }
 
 function createScript(data) {
-  let script = new Blob(data, {type:"text/plain;charset=utf-8"})
+  script = new Blob(data, {type:"text/plain;charset=utf-8"})
   let scriptUrl = window.URL.createObjectURL(script)
   return scriptUrl
 }
 
 function generateCode(lastNode) {
+  console.log(lastNode)
   var codeLine;
   var formated = false;
   var nodeInfo;
@@ -269,6 +292,7 @@ onMounted(() => {
 
 <template>
   <div class="box">
+    <input type="text" placeholder="unsaved" id="scriptName" v-model="name">
     <div class="left-panel">
       <h3 class="test">Blocks</h3>
       <ul>
@@ -279,9 +303,11 @@ onMounted(() => {
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
-      <button @click="renderCode" id="generate">generate code</button>
-      <div id="list"><object ref="code" width=200 height=400></object></div>
+      <button @click="renderCode" id="generate">Generate code</button>
       <button @click="sendExecTree()" id="execute">Execute code</button>
+      <div id="list"><object ref="code" width=200 height=400></object></div>
+      <button @click="saveCode()" class="database" id="save">Save code</button>
+      <button @click="loadCode()" class="database" id="load">Load code</button>
     </div>
   </div>
 </template>
@@ -295,6 +321,13 @@ onMounted(() => {
   width: 100%;
   left: 0px;
   top: 0px;
+}
+
+#scriptName {
+  position: absolute;
+  left: 200px;
+  top: 5px;
+  z-index: 1;
 }
 
 .left-panel {
@@ -329,16 +362,31 @@ onMounted(() => {
 }
 
 .right-panel button {
+  position: relative;
+  height: 28px;
+}
+
+.right-panel .database {
   position: absolute;
-  right: 0px;
+  bottom: 0px;
 }
 
 #generate{
-  top: 0px;
+  left: 5px;
+  top: 5px;
 }
 
 #execute {
-  bottom: 0px;
+  top: 5px;
+  right: -48px;
+}
+
+#save {
+  right: 178px;
+}
+
+#load {
+  right: 5px;
 }
 
 .right-panel div {
