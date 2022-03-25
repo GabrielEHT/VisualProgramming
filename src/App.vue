@@ -4,9 +4,11 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
-const code = ref(null)
-const editor = shallowRef({})
 const name = ref("")
+const code = ref(null)
+const dialog = ref(null)
+const editor = shallowRef({})
+const warn = ref({error:false})
 const nodeData = ref([
   {name:'assignation', type:'assign', class:'Value', in:1},
   {name:'number', type:'num', class:'Value'},
@@ -18,6 +20,22 @@ var nodeList = [];
 var tempSave = {};
 var script;
 
+function showWarning(text) {
+  warn.value.text = text
+  warn.value.error = true
+  setTimeout(() => {warn.value.error = false}, 5000)
+  //clearTimeout()
+}
+
+// Usar ref para nameLabel?
+function setName() {
+  let nameLabel = document.getElementById('scriptName')
+  nameLabel.innerHTML = name.value
+  dialog.value.close()
+  saveCode()
+}
+
+// Hacer función "overwriteCode"
 function saveCode() {
   tempSave.name = name.value
   tempSave.list = nodeList
@@ -32,6 +50,9 @@ function saveCode() {
 }
 
 function loadCode() {
+  let nameLabel = document.getElementById('scriptName')
+  name.vaule = tempSave.name
+  nameLabel.innerHTML = name.value
   nodeList = tempSave.list
   code.value.data = createScript([tempSave.code])
   editor.value.import(tempSave.nodes)
@@ -238,20 +259,20 @@ onMounted(() => {
     let input = editor.value.getNodeFromId(data.input_id);
     let output = editor.value.getNodeFromId(data.output_id);
 
-    if (input.class == 'Operation') {
+    if (output.data.val == '') {
+      editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+      showWarning('The node you are connecting doesn\'t has value!')
+    } else if (input.class == 'Operation') {
       if (input.data.val == '') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        alert('You have to choose an operation!')
-      } else if (output.data.val == '') {
-        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        alert('The node you are connecting doesn\'t has value!')
+        showWarning('You have to choose an operation!')
       } else {
         addConnection(data.output_id)
       }
     } else if (input.class == 'Value') {
       if (input.data.val == '') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        alert('Missing name in assignation node!')
+        showWarning('Missing name in assignation node!')
       } else {
         addConnection(data.output_id)
       }
@@ -265,9 +286,20 @@ onMounted(() => {
 
 <template>
   <div class="box">
-    <input type="text" placeholder="unsaved" id="scriptName" v-model="name">
+    <div v-if="warn.error">
+      <dialog open id="warn-box">
+        <p>{{warn.text}}</p>
+      </dialog>
+    </div>
+    <dialog ref="dialog">
+      <p>Enter a name</p>
+      <input type="text" placeholder="Name" v-model="name">
+      <button @click="dialog.close()">Cancel</button>
+      <button @click="setName()">Accept</button>
+    </dialog>
+    <p id="script-name">Unsaved</p>
     <div class="left-panel">
-      <h3 class="test">Blocks</h3>
+      <h3>Blocks</h3>
       <ul>
         <li v-for="data in nodeData">
           <button @click="addNode(data)">New {{data.name}}</button>
@@ -279,7 +311,7 @@ onMounted(() => {
       <button @click="renderCode" id="generate">Generate code</button>
       <button @click="sendExecTree()" id="execute">Execute code</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
-      <button @click="saveCode()" class="database" id="save">Save code</button>
+      <button @click="name==''? dialog.showModal() : saveCode()" class="database" id="save">Save code</button>
       <button @click="loadCode()" class="database" id="load">Load code</button>
     </div>
   </div>
@@ -296,11 +328,16 @@ onMounted(() => {
   top: 0px;
 }
 
-#scriptName {
+#warn-box {
+  top: -15px;
+  border: 2px solid black;
+  border-radius: 20%;
+}
+
+#script-name {
   position: absolute;
   left: 238px;
   top: 5px;
-  z-index: 1;
 }
 
 .left-panel {
