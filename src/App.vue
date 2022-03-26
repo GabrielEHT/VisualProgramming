@@ -4,6 +4,7 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
+// Crear "helpBox"
 const name = ref("")
 const code = ref(null)
 const dialog = ref(null)
@@ -20,16 +21,16 @@ var nodeList = [];
 var tempSave = {};
 var script;
 
+// Añadir animación
 function showWarning(text) {
   warn.value.text = text
   warn.value.error = true
   setTimeout(() => {warn.value.error = false}, 5000)
-  //clearTimeout()
 }
 
 // Usar ref para nameLabel?
 function setName() {
-  let nameLabel = document.getElementById('scriptName')
+  let nameLabel = document.getElementById('script-name')
   nameLabel.innerHTML = name.value
   dialog.value.close()
   saveCode()
@@ -50,7 +51,7 @@ function saveCode() {
 }
 
 function loadCode() {
-  let nameLabel = document.getElementById('scriptName')
+  let nameLabel = document.getElementById('script-name')
   name.vaule = tempSave.name
   nameLabel.innerHTML = name.value
   nodeList = tempSave.list
@@ -332,6 +333,7 @@ onMounted(() => {
   top: -15px;
   border: 2px solid black;
   border-radius: 20%;
+  z-index: 1;
 }
 
 #script-name {
