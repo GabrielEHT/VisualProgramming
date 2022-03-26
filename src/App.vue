@@ -4,32 +4,33 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
+// Crear "helpBox"
 const name = ref("")
 const code = ref(null)
 const dialog = ref(null)
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
-  {name:'assignation', type:'assign', class:'Value', in:1},
-  {name:'number', type:'num', class:'Value'},
-  {name:'operation', type:'operations', class:'Operation', in:2},
-  {name:'if-else block', type:'flowcon', class:'Conditional', in:1, out:2},
-  {name:'for loop', type:'flowloop', class:'Loop', in:1}
+  {name:'assignation', type:'assign', class:'Value', in:2, out:2},
+  {name:'number', type:'num', class:'Value', in:2, out:2},
+  {name:'operation', type:'operations', class:'Operation', in:3, out:2},
+  {name:'if-else block', type:'flowcon', class:'Conditional', in:2, out:2}, // flow outputs only
+  {name:'for loop', type:'flowloop', class:'Loop', in:2, out:2}
 ])
 var nodeList = [];
 var tempSave = {};
 var script;
 
+// Añadir animación
 function showWarning(text) {
   warn.value.text = text
   warn.value.error = true
   setTimeout(() => {warn.value.error = false}, 5000)
-  //clearTimeout()
 }
 
 // Usar ref para nameLabel?
 function setName() {
-  let nameLabel = document.getElementById('scriptName')
+  let nameLabel = document.getElementById('script-name')
   nameLabel.innerHTML = name.value
   dialog.value.close()
   saveCode()
@@ -50,7 +51,7 @@ function saveCode() {
 }
 
 function loadCode() {
-  let nameLabel = document.getElementById('scriptName')
+  let nameLabel = document.getElementById('script-name')
   name.vaule = tempSave.name
   nameLabel.innerHTML = name.value
   nodeList = tempSave.list
@@ -200,7 +201,7 @@ function addNode(data) {
   }
   editor.value.addNode(
     data.name,
-    data.in? data.in : 0,
+    data.in? data.in : 1,
     data.out? data.out : 1,
     0,
     0,
@@ -241,11 +242,19 @@ onMounted(() => {
     )
   }
 
-  // Keeps track of created nodes
+  // Defines flow inputs and outputs of new nodes and adds them to the node list
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
-    console.log(editor.value.getNodeFromId(id));
-    nodeList.push({'id':id, 'output':false})
+    let node = editor.value.getNodeFromId(id)
+    console.log(node)
+    let flow_inputs = ['input_1']
+    let flow_outputs;
+    if (node.class == 'Conditional') {
+      flow_outputs = ['output_1', 'output_2']
+    } else {
+      flow_outputs = ['output_1']
+    }
+    nodeList.push({'id':id, 'output':false, 'flow_inputs':[flow_inputs], 'flow_outputs':[flow_outputs]})
   })
 
   // Keeps track of deleted nodes
@@ -254,28 +263,52 @@ onMounted(() => {
     console.log('Removed id:', id, nodeList)
   })
 
+  // optimizar
   //Checks if the created connection is valid
   editor.value.on('connectionCreated', (data) => {
     let input = editor.value.getNodeFromId(data.input_id);
     let output = editor.value.getNodeFromId(data.output_id);
+    console.log(input, output)
+    let validConnection = false;
+    let output_type = 'value';
+    let input_type = 'value';
 
-    if (output.data.val == '') {
-      editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-      showWarning('The node you are connecting doesn\'t has value!')
-    } else if (input.class == 'Operation') {
-      if (input.data.val == '') {
-        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        showWarning('You have to choose an operation!')
-      } else {
-        addConnection(data.output_id)
+    for (let node of nodeList) {
+      if (data.output_id == node.id) {
+        output.flow_outputs = node.flow_outputs
+      } else if (data.input_id == node.id) {
+        input.flow_inputs = node.flow_inputs
       }
-    } else if (input.class == 'Value') {
-      if (input.data.val == '') {
-        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        showWarning('Missing name in assignation node!')
-      } else {
-        addConnection(data.output_id)
+    }
+
+    for (let flow of output.flow_outputs) {
+      if (data.output_class == flow) {
+        output_type = 'flow'
       }
+    }
+
+    for (let flow of input.flow_inputs) {
+      if (data.input_class == flow) {
+        input_type = 'flow'
+      }
+    }
+
+    if (output_type == 'value') {
+      if (input_type == 'flow') {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        showWarning('You can\'t connect a value output to a flow input!')
+      } else {
+        validConnection = true
+      }
+    } else {
+      if (input_type == 'value') {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        showWarning('You can\'t connect a flow output to a value input!')
+      }
+    }
+
+    if (validConnection) {
+      addConnection(data.output_id)
     }
   })
 
@@ -332,6 +365,7 @@ onMounted(() => {
   top: -15px;
   border: 2px solid black;
   border-radius: 20%;
+  z-index: 1;
 }
 
 #script-name {
