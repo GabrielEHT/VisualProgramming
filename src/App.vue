@@ -11,11 +11,11 @@ const dialog = ref(null)
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
-  {name:'assignation', type:'assign', class:'Value', in:2, out:2},
-  {name:'number', type:'num', class:'Value', in:2, out:2},
-  {name:'operation', type:'operations', class:'Operation', in:3, out:2},
-  {name:'if-else block', type:'flowcon', class:'Conditional', in:2, out:2}, // flow outputs only
-  {name:'for loop', type:'flowloop', class:'Loop', in:2, out:2}
+  {name:'assignation', type:'assign', class:'Value'}, //value input and output
+  {name:'number', type:'num', class:'Value'}, //flow input, value output
+  {name:'operation', type:'operations', class:'Operation', in:3}, //flow input and two value inputs, value output
+  {name:'if-else block', type:'flowcon', class:'Conditional', in:2, out:2}, //flow input, value input and two flow outputs
+  {name:'for loop', type:'flowloop', class:'Loop', in:2} //flow input, value input and flow output
 ])
 var nodeList = [];
 var tempSave = {};
@@ -59,24 +59,24 @@ function loadCode() {
   editor.value.import(tempSave.nodes)
 }
 
-function getLastNode() {
-  var lastNode;
+function getTopNode() {
+  var topNode;
   for (let node of nodeList) {
-    if (node.output == false && lastNode == undefined) {
-      lastNode = node
+    if (node.output == false && topNode == undefined) {
+      topNode = node
     } else if (node.output == false) {
       return 'err'
     }
   }
-  return lastNode
+  return topNode
 }
 
 function renderCode() {
   if (nodeList.length) {
-    var lastNode = getLastNode();
-    if (lastNode != 'err') {
+    var topNode = getTopNode();
+    if (topNode != 'err') {
       console.log(nodeList)
-      code.value.data = createScript([generateCode(lastNode)])
+      code.value.data = createScript([generateCode(topNode)])
     } else {
       alert('You left some unconnected nodes!')
     }
@@ -91,17 +91,17 @@ function createScript(data) {
   return scriptUrl
 }
 
-function generateCode(lastNode) {
-  console.log(lastNode)
+function generateCode(topNode) {
+  console.log(topNode)
   var codeLine;
   var formated = false;
   var nodeInfo;
   var inputs;
 
-  if (typeof lastNode == 'string') {
-    nodeInfo = editor.value.getNodeFromId(lastNode);
+  if (typeof topNode == 'string') {
+    nodeInfo = editor.value.getNodeFromId(topNode);
   } else {
-    nodeInfo = editor.value.getNodeFromId(lastNode.id);
+    nodeInfo = editor.value.getNodeFromId(topNode.id);
   }
 
   inputs = nodeInfo.inputs
@@ -141,9 +141,9 @@ function generateCode(lastNode) {
 }
 
 function sendExecTree() {
-  var lastNode = getLastNode()
-  if (lastNode != 'err') {
-    let execTree = generateExecTree(lastNode)
+  var topNode = getTopNode()
+  if (topNode != 'err') {
+    let execTree = generateExecTree(topNode)
     console.log(execTree)
     sendData(execTree)
   } else {
@@ -151,10 +151,10 @@ function sendExecTree() {
   }
 }
 
-function generateExecTree(lastNode) {
-  let nodeInfo = editor.value.getNodeFromId(lastNode.id);
+function generateExecTree(topNode) {
+  let nodeInfo = editor.value.getNodeFromId(topNode.id);
   var nodeExec = {[nodeInfo.name + ':' + nodeInfo.data.val]:[]};
-  let inputs = lastNode.input_from.split('')
+  let inputs = topNode.input_from.split('')
   if (inputs.length > 1) {
     inputs.splice(1, 1)
   }
@@ -184,6 +184,7 @@ async function sendData(data) {
   await http.send(JSON.stringify(data))
 }
 
+// eliminar?
 function addConnection(output_id) {
   for (let node of nodeList) {
     if (output_id == node.id) {
@@ -213,12 +214,12 @@ function addNode(data) {
 }
 
 onMounted(() => {
-  // Initialices Drawflow
+  //Initialices Drawflow
   let id = document.getElementById("drawflow");
   let Vue = { version: 3, h, render };
   editor.value = new Drawflow(id, Vue);
 
-  // Registers all nodes
+  //Registers all nodes
   for (let node of nodeData.value) {
     var comp;
     var props = {};
@@ -242,22 +243,25 @@ onMounted(() => {
     )
   }
 
-  // Defines flow inputs and outputs of new nodes and adds them to the node list
+  //Defines flow inputs and outputs of new nodes and adds them to the node list
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     let node = editor.value.getNodeFromId(id)
     console.log(node)
-    let flow_inputs = ['input_1']
-    let flow_outputs;
+    let flow_inputs = [];
+    let flow_outputs = [];
+    if (node.html != 'assign') {
+      flow_inputs = ['input_1']
+    }
     if (node.class == 'Conditional') {
       flow_outputs = ['output_1', 'output_2']
-    } else {
+    } else if (node.class == 'Loop') {
       flow_outputs = ['output_1']
     }
-    nodeList.push({'id':id, 'output':false, 'flow_inputs':[flow_inputs], 'flow_outputs':[flow_outputs]})
+    nodeList.push({'id':id, 'output':false, 'flow_inputs':flow_inputs, 'flow_outputs':flow_outputs})
   })
 
-  // Keeps track of deleted nodes
+  //Removes the deleted node from the node list
   editor.value.on('nodeRemoved', (id) => {
     nodeList = nodeList.filter(node => node.id!=id)
     console.log('Removed id:', id, nodeList)
@@ -268,7 +272,6 @@ onMounted(() => {
   editor.value.on('connectionCreated', (data) => {
     let input = editor.value.getNodeFromId(data.input_id);
     let output = editor.value.getNodeFromId(data.output_id);
-    console.log(input, output)
     let validConnection = false;
     let output_type = 'value';
     let input_type = 'value';
@@ -309,6 +312,24 @@ onMounted(() => {
 
     if (validConnection) {
       addConnection(data.output_id)
+    }
+  })
+
+  //Updates connection state of output node on removed connection
+  editor.value.on('connectionRemoved', (data) => {
+    let output = editor.value.getNodeFromId(data.output_id)
+    let disconnected = false
+    if (output.class == 'Conditional') {
+      if (output.outputs.output_1.connections.length == 0 && output.outputs.output_2.connections.length == 0) {
+        disconnected = true
+      }
+    } else {
+      disconnected = true
+    }
+    for (let node of nodeList) {
+      if (node.id == data.output_id && disconnected) {
+        node.output = false
+      }
     }
   })
 
