@@ -342,12 +342,16 @@ onMounted(() => {
   top: 5px;
 }
 
+.left-panel,
+.right-panel {
+  background-color: rgba(83, 169, 245, 0.96);
+}
+
 .left-panel {
   height: 100%;
   width: 25%;
   top: 0px;
   left: 0px;
-  background: rgb(218, 230, 233);
   padding-left: 15px;
 }
 
@@ -358,11 +362,11 @@ onMounted(() => {
 
 .left-panel h3 {
   position: relative;
-  left: 60px;
-  border: 5px solid black;
+  left: 65px;
+  border: 2px solid black;
   width: 52px;
   padding: 10px;
-  background-color: white;
+  background-color: limegreen;
 }
 
 .left-panel ul {
@@ -373,11 +377,11 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   text-align: initial;
-  border: 2px solid black;
+  border-left: 2px solid black;
+  border-right: 2px solid black;
 }
 
 .right-panel {
-  background-color: lightcyan;
   width: 30%;
   height: 100%;
 }
@@ -429,20 +433,24 @@ onMounted(() => {
 <style>
 
 .drawflow .parent-node .drawflow-node {
-    background-color: rgb(212, 216, 218);
+    background-color: rgb(200, 210, 220);
     width: auto;
 }
 
 .drawflow .parent-node .drawflow-node.selected {
-    background-color: rgb(190, 207, 216);
+    background-color: rgb(220, 230, 240);
+}
+
+.drawflow .parent-node .drawflow-node .input.input_1 {
+  background-color: white;
 }
 
 .drawflow .parent-node .drawflow-node .output {
-  background-color: aquamarine;
+  background-color: rgb(255, 167, 33);
 }
 
 .drawflow .parent-node .drawflow-node .output:hover {
-  background-color: coral;
+  background-color: rgb(255, 194, 102);
 }
 
 .drawflow .drawflow-node.Operation .input {
