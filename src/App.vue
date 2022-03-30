@@ -300,7 +300,7 @@ onMounted(() => {
     </dialog>
     <p id="script-name">Unsaved</p>
     <div class="left-panel">
-      <h3>Blocks</h3>
+      <h3>Nodes</h3>
       <ul>
         <li v-for="data in nodeData">
           <button @click="addNode(data)">New {{data.name}}</button>
@@ -344,11 +344,11 @@ onMounted(() => {
 
 .left-panel,
 .right-panel {
+  height: 100%;
   background-color: rgba(83, 169, 245, 0.96);
 }
 
 .left-panel {
-  height: 100%;
   width: 25%;
   top: 0px;
   left: 0px;
@@ -362,11 +362,12 @@ onMounted(() => {
 
 .left-panel h3 {
   position: relative;
-  left: 65px;
+  left: 64px;
   border: 2px solid black;
-  width: 52px;
+  width: 54px;
   padding: 10px;
-  background-color: limegreen;
+  background-color: rgba(255, 255, 255, 0.70);
+  font-size: large;
 }
 
 .left-panel ul {
@@ -383,7 +384,6 @@ onMounted(() => {
 
 .right-panel {
   width: 30%;
-  height: 100%;
 }
 
 .right-panel button {
@@ -442,7 +442,22 @@ onMounted(() => {
 }
 
 .drawflow .parent-node .drawflow-node .input.input_1 {
-  background-color: white;
+  background-color: rgba(255, 255, 255, 0);
+  border-radius: 0;
+  border-left: 20px solid mediumorchid;
+  border-right: 0px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  width: 0px;
+  height: 0px;
+}
+
+.drawflow .parent-node .drawflow-node.Value .input.input_1 {
+  background-color: yellow;
+  border: 2px solid black;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
 }
 
 .drawflow .parent-node .drawflow-node .output {
