@@ -11,10 +11,10 @@ const dialog = ref(null)
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
-  {name:'assignation', type:'assign', class:'Value'}, //value input and output
-  {name:'number', type:'num', class:'Value'}, //flow input, value output
-  {name:'operation', type:'operations', class:'Operation', in:3}, //flow input and two value inputs, value output
-  {name:'if-else block', type:'flowcon', class:'Conditional', in:2, out:2}, //flow input, value input and two flow outputs
+  {name:'assignation', type:'assign', class:'Value', in:2, out:2}, //flow input and output, value input and output
+  {name:'number', type:'num', class:'Value'}, //no inputs, value output
+  {name:'operation', type:'operations', class:'Operation', in:2}, //two value inputs, value output
+  {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:2}, //flow input, two value inputs and two flow outputs
   {name:'for loop', type:'flowloop', class:'Loop', in:2} //flow input, value input and flow output
 ])
 var nodeList = [];
@@ -73,15 +73,36 @@ function getTopNode() {
 
 function renderCode() {
   if (nodeList.length) {
-    var topNode = getTopNode();
+    let validator = true;
+    let message;
+    for (let node of nodeList) {
+      let nodeDet = editor.value.getNodeFromId(node.id)
+      if (nodeDet.data.val == '') {
+        if (nodeDet.html == 'assign') { // cambiar para usar class
+          message = 'There is an assignation node without name!'
+        } else if (nodeDet.html == 'num') {
+          message = 'There is a number node without a value!'
+        } else if (nodeDet.class == 'Operation') {
+          message = 'You have to select a operation for all operation nodes!'
+        } else if (nodeDet.class == 'Conditional') {
+          message = 'You have to define a comparison for all if-else nodes!'
+        }
+        validator = false
+        break
+      }
+    }
+    if (validator) {
+      //TODO
+    } else { // hacer que el editor enfoque al nodo del error
+      showWarning(message)
+    }
+    /*var topNode = getTopNode();
     if (topNode != 'err') {
       console.log(nodeList)
       code.value.data = createScript([generateCode(topNode)])
-    } else {
-      alert('You left some unconnected nodes!')
-    }
+    }*/
   } else {
-    alert('You haven\'t created any nodes!');
+    showWarning('You haven\'t created any nodes!');
   }
 }
 
@@ -170,6 +191,7 @@ function generateExecTree(topNode) {
   return nodeExec;
 }
 
+// Mover a otro módulo?
 async function sendData(data) {
   const http = new XMLHttpRequest()
   http.open('POST', 'http://localhost:8080/', true)
@@ -184,15 +206,6 @@ async function sendData(data) {
   await http.send(JSON.stringify(data))
 }
 
-// eliminar?
-function addConnection(output_id) {
-  for (let node of nodeList) {
-    if (output_id == node.id) {
-      node.output = true
-    }
-  }
-}
-
 function addNode(data) {
   var vars = {}
   if (data.class == 'Conditional') {
@@ -202,7 +215,7 @@ function addNode(data) {
   }
   editor.value.addNode(
     data.name,
-    data.in? data.in : 1,
+    data.in? data.in : 0,
     data.out? data.out : 1,
     0,
     0,
@@ -250,12 +263,12 @@ onMounted(() => {
     console.log(node)
     let flow_inputs = [];
     let flow_outputs = [];
-    if (node.html != 'assign') {
+    if (node.class != 'Operation' && node.inputs.input_1) {
       flow_inputs = ['input_1']
     }
     if (node.class == 'Conditional') {
       flow_outputs = ['output_1', 'output_2']
-    } else if (node.class == 'Loop') {
+    } else if (node.class == 'Loop' || node.html == 'assign') { // cambiar para usar class en lugar de html
       flow_outputs = ['output_1']
     }
     nodeList.push({'id':id, 'output':false, 'flow_inputs':flow_inputs, 'flow_outputs':flow_outputs})
@@ -311,10 +324,15 @@ onMounted(() => {
     }
 
     if (validConnection) {
-      addConnection(data.output_id)
+      for (let node of nodeList) {
+        if (data.output_id == node.id) {
+          node.output = true
+        }
+      }
     }
   })
 
+  // arreglar
   //Updates connection state of output node on removed connection
   editor.value.on('connectionRemoved', (data) => {
     let output = editor.value.getNodeFromId(data.output_id)
