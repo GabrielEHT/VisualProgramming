@@ -331,9 +331,31 @@ onMounted(() => {
 
 #warn-box {
   top: -15px;
-  border: 2px solid black;
-  border-radius: 20%;
+  border: 3px solid rgba(72, 212, 163, 0.83);
+  border-radius: 20px;
   z-index: 1;
+  background-color: rgba(83, 245, 142, 0.96);
+  animation-name: slideIn, slideOut;
+  animation-duration: 1s, 1s;
+  animation-delay: 0s, 4s;
+}
+
+@keyframes slideIn {
+  from {
+    top: -90px;
+  }
+  to {
+    top: -15px;
+  }
+}
+
+@keyframes slideOut {
+  from {
+    top: -15px;
+  }
+  to {
+    top: -90px;
+  }
 }
 
 #script-name {
