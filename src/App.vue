@@ -17,9 +17,10 @@ const nodeData = ref([
   {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:2}, //flow input, two value inputs and two flow outputs
   {name:'for loop', type:'flowloop', class:'Loop', in:2} //flow input, value input and flow output
 ])
+var script;
 var nodeList = [];
 var tempSave = {};
-var script;
+var coords = {x:0, y:0}
 
 // Añadir animación
 function showWarning(text) {
@@ -28,7 +29,7 @@ function showWarning(text) {
   setTimeout(() => {warn.value.error = false}, 5000)
 }
 
-// Usar ref para nameLabel?
+// usar ref para nameLabel?
 function setName() {
   let nameLabel = document.getElementById('script-name')
   nameLabel.innerHTML = name.value
@@ -36,7 +37,7 @@ function setName() {
   saveCode()
 }
 
-// Hacer función "overwriteCode"
+// hacer función "overwriteCode"
 function saveCode() {
   tempSave.name = name.value
   tempSave.list = nodeList
@@ -121,11 +122,6 @@ function renderCode() {
     } else { // hacer que el editor enfoque al nodo del error
       showWarning(message)
     }
-    /*var topNode = getTopNode();
-    if (topNode != 'err') {
-      console.log(nodeList)
-      code.value.data = createScript([generateCode(topNode)])
-    }*/
   } else {
     showWarning('You haven\'t created any nodes!');
   }
@@ -219,7 +215,7 @@ function generateExecTree(rootNode, execTree) {
   return execTree
 }
 
-// Mover a otro módulo?
+// mover a otro módulo?
 async function sendData(data) {
   const http = new XMLHttpRequest()
   http.open('POST', 'http://localhost:8080/', true)
@@ -235,7 +231,7 @@ async function sendData(data) {
 }
 
 function addNode(data) {
-  var vars = {}
+  let vars = {}
   if (data.class == 'Conditional') {
     vars = {'val':'', 'con':''}
   } else {
@@ -245,8 +241,8 @@ function addNode(data) {
     data.name,
     data.in? data.in : 0,
     data.out? data.out : 1,
-    0,
-    0,
+    coords.x,
+    coords.y,
     data.class,
     vars,
     data.type,
@@ -255,12 +251,12 @@ function addNode(data) {
 }
 
 onMounted(() => {
-  //Initialices Drawflow
+  // Initialices Drawflow
   let id = document.getElementById("drawflow");
   let Vue = { version: 3, h, render };
   editor.value = new Drawflow(id, Vue);
 
-  //Registers all nodes
+  // Registers all nodes
   for (let node of nodeData.value) {
     var comp;
     var props = {};
@@ -284,7 +280,7 @@ onMounted(() => {
     )
   }
 
-  //Defines flow inputs and outputs of new nodes and adds them to the node list
+  // Defines flow inputs and outputs of new nodes and adds them to the node list
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     let node = editor.value.getNodeFromId(id)
@@ -304,13 +300,13 @@ onMounted(() => {
     nodeList.push(node)
   })
 
-  //Removes the deleted node from the node list
+  // Removes the deleted node from the node list
   editor.value.on('nodeRemoved', (id) => {
     nodeList = nodeList.filter(node => node.id!=id)
     console.log('Removed id:', id, nodeList)
   })
 
-  //Checks if the created connection is valid
+  // Checks if the created connection is valid
   editor.value.on('connectionCreated', (data) => {
     let input = getNodeFromId(data.input_id);
     let output = getNodeFromId(data.output_id);
@@ -343,7 +339,7 @@ onMounted(() => {
   })
 
   // arreglar
-  //Updates connection state of output node on removed connection
+  // Updates connection state of output node on removed connection
   editor.value.on('connectionRemoved', (data) => {
     let output = editor.value.getNodeFromId(data.output_id)
     let disconnected = false
@@ -359,6 +355,12 @@ onMounted(() => {
         node.output = false
       }
     }
+  })
+
+  // Keeps track of the screen position
+  editor.value.on('translate', (pos) => {
+    coords.x = pos.x * -1 + 50
+    coords.y = pos.y * -1 + 50
   })
 
   editor.value.start();
