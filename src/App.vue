@@ -59,32 +59,55 @@ function loadCode() {
   editor.value.import(tempSave.nodes)
 }
 
-function getTopNode() {
-  var topNode;
+function getRootNode() {
+  let rootNode;
   for (let node of nodeList) {
-    if (node.output == false && topNode == undefined) {
-      topNode = node
-    } else if (node.output == false) {
-      return 'err'
+    if (node.inputs.input_1 != undefined && node.inputs.input_1.connections.length == 0) {
+      if (rootNode) {
+        rootNode = 'err'
+        break
+      } else {
+        rootNode = node
+      }
     }
   }
-  return topNode
+  return rootNode
+}
+
+function getNodeFromId(id) {
+  for (let node of nodeList) {
+    if(id == node.id) {
+      return node
+    }
+  }
+}
+
+function updateNodeData() {
+  let i = 0;
+  for (let node of nodeList) {
+    let nodeInfo = editor.value.getNodeFromId(node.id)
+    nodeInfo.flow_inputs = node.flow_inputs
+    nodeInfo.flow_outputs = node.flow_outputs
+    nodeList[i] = nodeInfo
+    i++;
+  }
 }
 
 function renderCode() {
   if (nodeList.length) {
+    updateNodeData()
+    console.log(nodeList)
     let validator = true;
     let message;
     for (let node of nodeList) {
-      let nodeDet = editor.value.getNodeFromId(node.id)
-      if (nodeDet.data.val == '') {
-        if (nodeDet.html == 'assign') { // cambiar para usar class
+      if (node.data.val == '') {
+        if (node.html == 'assign') { // cambiar para usar class
           message = 'There is an assignation node without name!'
-        } else if (nodeDet.html == 'num') {
+        } else if (node.html == 'num') {
           message = 'There is a number node without a value!'
-        } else if (nodeDet.class == 'Operation') {
+        } else if (node.class == 'Operation') {
           message = 'You have to select a operation for all operation nodes!'
-        } else if (nodeDet.class == 'Conditional') {
+        } else if (node.class == 'Conditional') {
           message = 'You have to define a comparison for all if-else nodes!'
         }
         validator = false
@@ -92,7 +115,9 @@ function renderCode() {
       }
     }
     if (validator) {
-      //TODO
+      let execTree = generateExecTree()
+      console.log(execTree)
+      // generar codigo
     } else { // hacer que el editor enfoque al nodo del error
       showWarning(message)
     }
@@ -161,34 +186,37 @@ function generateCode(topNode) {
   return codeLine;
 }
 
-function sendExecTree() {
-  var topNode = getTopNode()
-  if (topNode != 'err') {
-    let execTree = generateExecTree(topNode)
-    console.log(execTree)
-    sendData(execTree)
+function generateExecTree(rootNode, execTree) {
+  if (execTree == undefined) {
+    execTree = []
+  }
+  if (rootNode == undefined) {
+    rootNode = getRootNode()
+    console.log(rootNode)
+  }
+  let nextNode;
+  if (rootNode.class == 'Conditional') {
+    let conditional = {id:rootNode.id}
+    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    conditional['if'] = generateExecTree(nextNode, [])
+    if (rootNode.outputs.output_2.connections.length > 0) {
+      nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
+      conditional['else'] = generateExecTree(nextNode, [])
+    }
+    execTree.push(conditional)
+  } else if (rootNode.class == 'Loop') {
+    let loop = {id:rootNode.id}
+    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    loop['for'] = generateExecTree(nextNode, [])
+    execTree.push(loop)
   } else {
-    alert('Unexpected error happened')
-  }
-}
-
-function generateExecTree(topNode) {
-  let nodeInfo = editor.value.getNodeFromId(topNode.id);
-  var nodeExec = {[nodeInfo.name + ':' + nodeInfo.data.val]:[]};
-  let inputs = topNode.input_from.split('')
-  if (inputs.length > 1) {
-    inputs.splice(1, 1)
-  }
-  for (let input of inputs) {
-    for (let node of nodeList) {
-      if (node.id == input && node.input_from != 'none') {
-        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(generateExecTree(node))
-      } else if (node.id == input) {
-        nodeExec[nodeInfo.name + ':' + nodeInfo.data.val].push(editor.value.getNodeFromId(input).data.val)
-      }
+    execTree.push({[rootNode.html]:rootNode.id}) // cambiar para que use class
+    if (rootNode.outputs.output_1.connections.length > 0) {
+      nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+      execTree = generateExecTree(nextNode, execTree)
     }
   }
-  return nodeExec;
+  return execTree
 }
 
 // Mover a otro módulo?
@@ -260,7 +288,6 @@ onMounted(() => {
   editor.value.on('nodeCreated', (id) => {
     console.log('New node:', id);
     let node = editor.value.getNodeFromId(id)
-    console.log(node)
     let flow_inputs = [];
     let flow_outputs = [];
     if (node.class != 'Operation' && node.inputs.input_1) {
@@ -271,7 +298,10 @@ onMounted(() => {
     } else if (node.class == 'Loop' || node.html == 'assign') { // cambiar para usar class en lugar de html
       flow_outputs = ['output_1']
     }
-    nodeList.push({'id':id, 'output':false, 'flow_inputs':flow_inputs, 'flow_outputs':flow_outputs})
+    node.flow_inputs = flow_inputs
+    node.flow_outputs = flow_outputs
+    console.log(node)
+    nodeList.push(node)
   })
 
   //Removes the deleted node from the node list
@@ -280,22 +310,12 @@ onMounted(() => {
     console.log('Removed id:', id, nodeList)
   })
 
-  // optimizar
   //Checks if the created connection is valid
   editor.value.on('connectionCreated', (data) => {
-    let input = editor.value.getNodeFromId(data.input_id);
-    let output = editor.value.getNodeFromId(data.output_id);
-    let validConnection = false;
+    let input = getNodeFromId(data.input_id);
+    let output = getNodeFromId(data.output_id);
     let output_type = 'value';
     let input_type = 'value';
-
-    for (let node of nodeList) {
-      if (data.output_id == node.id) {
-        output.flow_outputs = node.flow_outputs
-      } else if (data.input_id == node.id) {
-        input.flow_inputs = node.flow_inputs
-      }
-    }
 
     for (let flow of output.flow_outputs) {
       if (data.output_class == flow) {
@@ -313,21 +333,11 @@ onMounted(() => {
       if (input_type == 'flow') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         showWarning('You can\'t connect a value output to a flow input!')
-      } else {
-        validConnection = true
       }
     } else {
       if (input_type == 'value') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         showWarning('You can\'t connect a flow output to a value input!')
-      }
-    }
-
-    if (validConnection) {
-      for (let node of nodeList) {
-        if (data.output_id == node.id) {
-          node.output = true
-        }
       }
     }
   })
@@ -380,8 +390,8 @@ onMounted(() => {
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
-      <button @click="renderCode" id="generate">Generate code</button>
-      <button @click="sendExecTree()" id="execute">Execute code</button>
+      <button @click="renderCode()" id="generate">Generate code</button>
+      <button id="execute">Execute code</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
       <button @click="name==''? dialog.showModal() : saveCode()" class="database" id="save">Save code</button>
       <button @click="loadCode()" class="database" id="load">Load code</button>
