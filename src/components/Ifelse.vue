@@ -5,7 +5,7 @@
     <label for="conditions">value</label>
     <select df-val name="conditions">
       <option value="">Select a condition</option>
-      <option value="=">Is equal than</option>
+      <option value="==">Is equal than</option>
       <option value="!=">Is different than</option>
       <option value="<">Is minus than</option>
       <option value="<=">Is minus or equal than</option>

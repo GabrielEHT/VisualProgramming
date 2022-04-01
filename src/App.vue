@@ -20,7 +20,7 @@ const nodeData = ref([
 var script;
 var nodeList = [];
 var tempSave = {};
-var coords = {x:0, y:0}
+var coords = {x:100, y:100}
 
 // Añadir animación
 function showWarning(text) {
@@ -118,6 +118,9 @@ function renderCode() {
     if (validator) {
       let execTree = generateExecTree()
       console.log(execTree)
+      let text = generateCode(execTree)
+      console.log(text)
+      code.value.data = createScript(text)
       // generar codigo
     } else { // hacer que el editor enfoque al nodo del error
       showWarning(message)
@@ -133,22 +136,61 @@ function createScript(data) {
   return scriptUrl
 }
 
-function generateCode(topNode) {
-  console.log(topNode)
-  var codeLine;
-  var formated = false;
-  var nodeInfo;
-  var inputs;
-
-  if (typeof topNode == 'string') {
-    nodeInfo = editor.value.getNodeFromId(topNode);
-  } else {
-    nodeInfo = editor.value.getNodeFromId(topNode.id);
+function resolveValueNodes(id) {
+  let node = editor.value.getNodeFromId(id)
+  let result
+  switch (node.class) {
+    case 'Value':
+      result = node.data.val
+      break
+    case 'Operation':
+      let a = resolveValueNodes(node.inputs.input_1.connections[0].node)
+      let b = resolveValueNodes(node.inputs.input_2.connections[0].node)
+      result = a + ' ' + node.data.val + ' ' + b
+      break
+    default:
+      console.log('Unknown class')
   }
+  return result
+}
 
-  inputs = nodeInfo.inputs
-
-  if (nodeInfo.name == 'assignation') {
+function generateCode(execTree, indentLevel) {
+  let codeText = [];
+  if (indentLevel == undefined) {
+    indentLevel = 0;
+  }
+  let spaces = ' '.repeat(indentLevel * 4)
+  for (let line of execTree) {
+    if (line.hasOwnProperty('assign')) {
+      let node = editor.value.getNodeFromId(line.assign)
+      let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
+      codeText.push(spaces + node.data.val + ' = ' + result + '\n')
+    } else if (line.hasOwnProperty('if')) {
+      let node = editor.value.getNodeFromId(line.id)
+      let a = resolveValueNodes(node.inputs.input_2.connections[0].node)
+      let b = resolveValueNodes(node.inputs.input_3.connections[0].node)
+      codeText.push(spaces + 'if ' + a + ' ' + node.data.val + ' ' + b + ':\n')
+      let ifBlock = generateCode(line['if'], indentLevel + 1)
+      for (let indLine of ifBlock) {
+        codeText.push(indLine)
+      }
+      codeText.push(spaces + 'else:\n')
+      let elseBlock = generateCode(line['else'], indentLevel + 1)
+      for (let indLine of elseBlock) {
+        codeText.push(indLine)
+      }
+    } else if (line.hasOwnProperty('for')) {
+      let node = editor.value.getNodeFromId(line.id)
+      let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
+      codeText.push(spaces + 'for i in range(' + result + '):\n')
+      let forBlock = generateCode(line['for'], indentLevel + 1)
+      for (let indLine of forBlock) {
+        codeText.push(indLine)
+      }
+    }
+  }
+  return codeText
+  /*if (nodeInfo.name == 'assignation') {
     codeLine = nodeInfo.data.val + ' = '
   } else if (nodeInfo.name == 'operation') {
     let symbol;
@@ -167,19 +209,7 @@ function generateCode(topNode) {
     formated = true;
   } else {
     codeLine = nodeInfo.data.val
-  }
-
-  if (formated == false && nodeInfo.name != 'number') {
-    for (let input in inputs) {
-      for (let node of nodeList) {
-        if (node.id == inputs[input].connections[0].node) {
-          codeLine += generateCode(node)
-        }
-      }
-    }
-  }
-
-  return codeLine;
+  }*/
 }
 
 function generateExecTree(rootNode, execTree) {
@@ -206,7 +236,7 @@ function generateExecTree(rootNode, execTree) {
     loop['for'] = generateExecTree(nextNode, [])
     execTree.push(loop)
   } else {
-    execTree.push({[rootNode.html]:rootNode.id}) // cambiar para que use class
+    execTree.push({'assign':rootNode.id})
     if (rootNode.outputs.output_1.connections.length > 0) {
       nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
       execTree = generateExecTree(nextNode, execTree)
@@ -234,6 +264,8 @@ function addNode(data) {
   let vars = {}
   if (data.class == 'Conditional') {
     vars = {'val':'', 'con':''}
+  } else if (data.class == 'Loop') {
+    vars = {'val':'i'}
   } else {
     vars = {'val':''}
   }
@@ -359,8 +391,8 @@ onMounted(() => {
 
   // Keeps track of the screen position
   editor.value.on('translate', (pos) => {
-    coords.x = pos.x * -1 + 50
-    coords.y = pos.y * -1 + 50
+    coords.x = pos.x * -1 + 100
+    coords.y = pos.y * -1 + 100
   })
 
   editor.value.start();
@@ -389,6 +421,7 @@ onMounted(() => {
           <button @click="addNode(data)">New {{data.name}}</button>
         </li>
       </ul>
+      <button @click="editor.clear()">Clear editor</button>
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
