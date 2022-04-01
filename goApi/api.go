@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"log"
 	"strings"
@@ -21,13 +22,22 @@ func checkStatus(w http.ResponseWriter, r *http.Request) {
 func executeCode(w http.ResponseWriter, r *http.Request) {
 	var t map[string]interface{}
 	err := json.NewDecoder(r.Body).Decode(&t)
-
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
-
-	result := pythonExecution(t)
-	fmt.Fprint(w, result)
+	file, err := os.Create("./script.py")
+	if err != nil {
+		log.Fatal(err)
+	}
+	var text []byte
+	for _, b := range t["data"].(map[string]interface{}) {
+		text = append(text, byte(b.(float64)))
+	}
+	_, err = file.Write(text)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Fprint(w, "created")
 }
 
 func pythonExecution(t map[string]interface{}) string {
@@ -173,7 +183,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.SetHeader("Access-Control-Allow-Origin", "*"))
 	router.Get("/", checkStatus)
-	router.Post("/", executeCode)
 	router.Post("/scripts", saveData)
+	router.Post("/exec", executeCode)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

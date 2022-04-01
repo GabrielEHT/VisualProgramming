@@ -22,6 +22,19 @@ var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
 
+function requestExecution() {
+  const http = new XMLHttpRequest()
+  http.open('POST', 'http://localhost:8080/exec')
+  http.addEventListener('load', () => {
+    console.log(http.response)
+  })
+  script.arrayBuffer()
+  .then((buffer) => {
+    let bytes = new Int8Array(buffer)
+    http.send(JSON.stringify({data:bytes}))
+  })
+}
+
 // Añadir animación
 function showWarning(text) {
   warn.value.text = text
@@ -426,7 +439,7 @@ onMounted(() => {
     <div id="drawflow"></div>
     <div class="right-panel">
       <button @click="renderCode()" id="generate">Generate code</button>
-      <button id="execute">Execute code</button>
+      <button @click="requestExecution()" id="execute">Execute code</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
       <button @click="name==''? dialog.showModal() : saveCode()" class="database" id="save">Save code</button>
       <button @click="loadCode()" class="database" id="load">Load code</button>
