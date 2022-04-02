@@ -1,10 +1,12 @@
 package main
 
 import (
+	"os"
 	"fmt"
 	"log"
-	"strings"
-	"strconv"
+	"os/exec"
+	//"strings"
+	//"strconv"
 	"net/http"
 	"encoding/json"
 	//"google.golang.org/grpc"
@@ -18,105 +20,34 @@ func checkStatus(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Ok")
 }
 
+// crear función para los errores
 func executeCode(w http.ResponseWriter, r *http.Request) {
-	var t map[string]interface{}
+	var t map[string]string
 	err := json.NewDecoder(r.Body).Decode(&t)
-
 	if err != nil {
-		log.Println(err)
+		log.Fatal(err)
 	}
-
-	result := pythonExecution(t)
-	fmt.Fprint(w, result)
-}
-
-func pythonExecution(t map[string]interface{}) string {
-	var r string;
-	var err error;
-
-	for c := range t {
-		s := strings.Split(c, ":")
-		switch s[0] {
-		case "assignation":
-			r, err = doAssign(t[c])
-		case "operation":
-			r, err = doOperation(s[1], t[c])
-		}
-	}
-
+	file, err := os.Create("./script.py")
 	if err != nil {
-		return "An error ocurred"
+		log.Fatal(err)
 	}
-
-	return r
-}
-
-func doAssign(val interface{}) (string, error) {
-	var r string;
-	var err error;
-	s := val.([]interface{})
-	for _, v := range s {
-		switch v.(type) {
-		case string:
-			r = v.(string)
-		case map[string]interface{}:
-			m := v.(map[string]interface{})
-			for opr, num := range m {
-				opr = strings.Split(opr, ":")[1]
-				r, err = doOperation(opr, num)
-			}
-		default:
-			log.Printf("Type: %T\n", v)
-			r = "default"
-		}
-	}
+	text := []byte(t["data"])
+	_, err = file.Write(text)
 	if err != nil {
-		return "Error in assign", err
+		log.Fatal(err)
 	}
-
-	return r, nil
-}
-
-func doOperation(opr string, i interface{}) (string, error) {
-	s := i.([]interface{})
-	var n1, n2 string
-	var r int;
-	for _, n := range s {
-		log.Printf("Number type and value: %v %T\n", n, n)
-		switch n.(type) {
-		case string:
-			if n1 == "" {
-				n1 = n.(string)
-			} else {
-				n2 = n.(string)
-			}
-		default:
-			doOperation("add", n)
-		}
+	c := exec.Command("python3", "script.py")
+	result, err := c.CombinedOutput()
+	resultStr := string(result)
+	if err != nil {
+		//log.Fatal(err)
+		fmt.Println(err)
 	}
-
-	i1, err1 := strconv.Atoi(n1)
-	i2, err2 := strconv.Atoi(n2)
-
-	if err1 != nil {
-		return "", err1
-	} else if err2 != nil {
-		return "", err2
+	if resultStr == "" {
+		fmt.Fprint(w, "Code executed without errors")
+	} else {
+		fmt.Fprintf(w, "%s", result)
 	}
-
-	switch opr {
-	case "add":
-		r = i1 + i2
-	case "sub":
-		r = i1 - i2
-	case "mul":
-		r = i1 * i2
-	case "div":
-		r = i1 / i2
-	}
-
-	log.Println(r)
-	return strconv.Itoa(r), nil
 }
 
 type Test struct {
@@ -173,7 +104,7 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.SetHeader("Access-Control-Allow-Origin", "*"))
 	router.Get("/", checkStatus)
-	router.Post("/", executeCode)
 	router.Post("/scripts", saveData)
+	router.Post("/exec", executeCode)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

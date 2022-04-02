@@ -3,10 +3,10 @@
     <h1>Operation</h1>
     <select df-val>
       <option value="">Select an operation</option>
-      <option value="add">Addition</option>
-      <option value="sub">Substraction</option>
-      <option value="mul">Multiplication</option>
-      <option value="div">Division</option>
+      <option value="+">Addition</option>
+      <option value="-">Substraction</option>
+      <option value="*">Multiplication</option>
+      <option value="/">Division</option>
     </select>
     <h2>A value</h2>
     <h2>B value</h2>
