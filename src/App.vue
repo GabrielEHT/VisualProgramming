@@ -11,7 +11,7 @@ const dialog = ref(null)
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
-  {name:'assignation', type:'assign', class:'Value', in:2, out:2}, //flow input and output, value input and output
+  {name:'assignation', type:'assign', class:'Assign', in:2, out:2}, //flow input and output, value input and output
   {name:'number', type:'num', class:'Value'}, //no inputs, value output
   {name:'operation', type:'operations', class:'Operation', in:2}, //two value inputs, value output
   {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:2}, //flow input, two value inputs and two flow outputs
@@ -153,6 +153,7 @@ function resolveValueNodes(id) {
   let node = editor.value.getNodeFromId(id)
   let result
   switch (node.class) {
+    case 'Assign':
     case 'Value':
       result = node.data.val
       break
@@ -203,26 +204,6 @@ function generateCode(execTree, indentLevel) {
     }
   }
   return codeText
-  /*if (nodeInfo.name == 'assignation') {
-    codeLine = nodeInfo.data.val + ' = '
-  } else if (nodeInfo.name == 'operation') {
-    let symbol;
-    if (nodeInfo.data.val == 'add') {
-      symbol = '+'
-    } else if (nodeInfo.data.val == 'sub') {
-      symbol = '-'
-    } else if (nodeInfo.data.val == 'mul') {
-      symbol = '*'
-    } else if (nodeInfo.data.val == 'div') {
-      symbol = '/'
-    }
-    let aNum = generateCode(inputs.input_1.connections[0].node)
-    let bNum = generateCode(inputs.input_2.connections[0].node)
-    codeLine = `${aNum} ${symbol} ${bNum}`
-    formated = true;
-  } else {
-    codeLine = nodeInfo.data.val
-  }*/
 }
 
 function generateExecTree(rootNode, execTree) {
@@ -305,7 +286,9 @@ onMounted(() => {
   for (let node of nodeData.value) {
     var comp;
     var props = {};
-    if (node.class == 'Operation') {
+    if (node.class == 'Assign') {
+      comp = components.assign
+    } else if (node.class == 'Operation') {
       comp = components.operations
     } else if (node.class == 'Value') {
       comp = components.datatypes
@@ -592,6 +575,7 @@ onMounted(() => {
     background-color: rgb(220, 230, 240);
 }
 
+.drawflow .parent-node .drawflow-node .output.output_1,
 .drawflow .parent-node .drawflow-node .input.input_1 {
   background-color: rgba(255, 255, 255, 0);
   border-radius: 0;
@@ -603,12 +587,22 @@ onMounted(() => {
   height: 0px;
 }
 
-.drawflow .parent-node .drawflow-node.Value .input.input_1 {
-  background-color: yellow;
-  border: 2px solid black;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.drawflow .parent-node .drawflow-node.Assign .output.output_1,
+.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
+  top: -9px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_2,
+.drawflow .parent-node .drawflow-node.Assign .input.input_2 {
+  top: 10px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
+  left: -22px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_1 {
+  left: 8px
 }
 
 .drawflow .parent-node .drawflow-node .output {

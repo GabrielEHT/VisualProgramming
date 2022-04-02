@@ -18,10 +18,6 @@
     <h1>Number</h1>
     <input v-model="num" type="text" placeholder="Number" df-val>
   </div>
-  <div v-else-if="props.type=='assign'">
-    <h1>Assignation</h1>
-    <input type="text" placeholder="Name" df-val>
-  </div>
   <div v-else>
     <h1>Error</h1>
   </div>
