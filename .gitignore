@@ -26,4 +26,7 @@ coverage
 *.njsproj
 *.sln
 *.sw?
+
+# Unnecessary or temporary files
 ideas.txt
+script.py

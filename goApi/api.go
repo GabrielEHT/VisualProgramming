@@ -20,19 +20,21 @@ func checkStatus(w http.ResponseWriter, r *http.Request) {
 }
 
 func executeCode(w http.ResponseWriter, r *http.Request) {
-	var t map[string]interface{}
+	//var t map[string]map[string]float64
+	var t map[string]string
 	err := json.NewDecoder(r.Body).Decode(&t)
 	if err != nil {
 		log.Fatal(err)
+	}
+	for _, v := range t {
+		fmt.Printf("value: %v\nType: %T\n", v, v)
 	}
 	file, err := os.Create("./script.py")
 	if err != nil {
 		log.Fatal(err)
 	}
-	var text []byte
-	for _, b := range t["data"].(map[string]interface{}) {
-		text = append(text, byte(b.(float64)))
-	}
+	text := []byte(t["data"])
+	fmt.Printf("t: %v, text: %v\n", t["data"], text)
 	_, err = file.Write(text)
 	if err != nil {
 		log.Fatal(err)

@@ -28,11 +28,11 @@ function requestExecution() {
   http.addEventListener('load', () => {
     console.log(http.response)
   })
-  script.arrayBuffer()
-  .then((buffer) => {
-    let bytes = new Int8Array(buffer)
-    http.send(JSON.stringify({data:bytes}))
-  })
+  let wholeScript = ""
+  for (let line of script) {
+    wholeScript += line
+  }
+  http.send(JSON.stringify({data:wholeScript}))
 }
 
 // Añadir animación
@@ -131,9 +131,9 @@ function renderCode() {
     if (validator) {
       let execTree = generateExecTree()
       console.log(execTree)
-      let text = generateCode(execTree)
-      console.log(text)
-      code.value.data = createScript(text)
+      script = generateCode(execTree)
+      console.log(script)
+      code.value.data = createScript(script)
       // generar codigo
     } else { // hacer que el editor enfoque al nodo del error
       showWarning(message)
@@ -144,8 +144,8 @@ function renderCode() {
 }
 
 function createScript(data) {
-  script = new Blob(data, {type:"text/plain;charset=utf-8"})
-  let scriptUrl = window.URL.createObjectURL(script)
+  let scriptBlob = new Blob(data, {type:"text/plain;charset=utf-8"})
+  let scriptUrl = window.URL.createObjectURL(scriptBlob)
   return scriptUrl
 }
 
@@ -178,7 +178,7 @@ function generateCode(execTree, indentLevel) {
       let node = editor.value.getNodeFromId(line.assign)
       let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
       codeText.push(spaces + node.data.val + ' = ' + result + '\n')
-    } else if (line.hasOwnProperty('if')) {
+    } else if (line.hasOwnProperty('if')) { // arreglar
       let node = editor.value.getNodeFromId(line.id)
       let a = resolveValueNodes(node.inputs.input_2.connections[0].node)
       let b = resolveValueNodes(node.inputs.input_3.connections[0].node)
