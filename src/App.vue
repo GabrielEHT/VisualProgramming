@@ -14,8 +14,8 @@ const nodeData = ref([
   {name:'assignation', type:'assign', class:'Assign', in:2, out:2}, //flow input and output, value input and output
   {name:'number', type:'num', class:'Value'}, //no inputs, value output
   {name:'operation', type:'operations', class:'Operation', in:2}, //two value inputs, value output
-  {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:2}, //flow input, two value inputs and two flow outputs
-  {name:'for loop', type:'flowloop', class:'Loop', in:2} //flow input, value input and flow output
+  {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:3}, //flow input, two value inputs and three flow outputs
+  {name:'for loop', type:'flowloop', class:'Loop', in:2, out:2} //flow input, value input and two flow outputs
 ])
 var script;
 var nodeList = [];
@@ -115,9 +115,9 @@ function renderCode() {
     let message;
     for (let node of nodeList) {
       if (node.data.val == '') {
-        if (node.html == 'assign') { // cambiar para usar class
+        if (node.class == 'Assign') {
           message = 'There is an assignation node without name!'
-        } else if (node.html == 'num') {
+        } else if (node.class == 'Value') {
           message = 'There is a number node without a value!'
         } else if (node.class == 'Operation') {
           message = 'You have to select a operation for all operation nodes!'
@@ -188,10 +188,12 @@ function generateCode(execTree, indentLevel) {
       for (let indLine of ifBlock) {
         codeText.push(indLine)
       }
-      codeText.push(spaces + 'else:\n')
-      let elseBlock = generateCode(line['else'], indentLevel + 1)
-      for (let indLine of elseBlock) {
-        codeText.push(indLine)
+      if (line['else']) {
+        codeText.push(spaces + 'else:\n')
+        let elseBlock = generateCode(line['else'], indentLevel + 1)
+        for (let indLine of elseBlock) {
+          codeText.push(indLine)
+        }
       }
     } else if (line.hasOwnProperty('for')) {
       let node = editor.value.getNodeFromId(line.id)
@@ -217,24 +219,24 @@ function generateExecTree(rootNode, execTree) {
   let nextNode;
   if (rootNode.class == 'Conditional') {
     let conditional = {id:rootNode.id}
-    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
     conditional['if'] = generateExecTree(nextNode, [])
-    if (rootNode.outputs.output_2.connections.length > 0) {
-      nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
+    if (rootNode.outputs.output_3.connections.length > 0) {
+      nextNode = getNodeFromId(rootNode.outputs.output_3.connections[0].node);
       conditional['else'] = generateExecTree(nextNode, [])
     }
     execTree.push(conditional)
   } else if (rootNode.class == 'Loop') {
     let loop = {id:rootNode.id}
-    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
     loop['for'] = generateExecTree(nextNode, [])
     execTree.push(loop)
   } else {
     execTree.push({'assign':rootNode.id})
-    if (rootNode.outputs.output_1.connections.length > 0) {
-      nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
-      execTree = generateExecTree(nextNode, execTree)
-    }
+  }
+  if (rootNode.outputs.output_1.connections.length > 0) {
+    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    execTree = generateExecTree(nextNode, execTree)
   }
   return execTree
 }
@@ -318,8 +320,10 @@ onMounted(() => {
       flow_inputs = ['input_1']
     }
     if (node.class == 'Conditional') {
+      flow_outputs = ['output_1', 'output_2', 'output_3']
+    } else if (node.class == 'Loop') {
       flow_outputs = ['output_1', 'output_2']
-    } else if (node.class == 'Loop' || node.html == 'assign') { // cambiar para usar class en lugar de html
+    } else if (node.class == 'Assign') { // cambiar para usar class en lugar de html
       flow_outputs = ['output_1']
     }
     node.flow_inputs = flow_inputs

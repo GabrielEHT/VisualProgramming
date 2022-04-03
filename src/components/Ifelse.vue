@@ -5,12 +5,12 @@
     <label for="conditions">value</label>
     <select df-val name="conditions">
       <option value="">Select a condition</option>
-      <option value="==">Is equal than</option>
-      <option value="!=">Is different than</option>
-      <option value="<">Is minus than</option>
-      <option value="<=">Is minus or equal than</option>
-      <option value=">">Is more than</option>
-      <option value=">=">Is more or equal than</option>
+      <option value="==">Is equal to</option>
+      <option value="!=">Is unequal to</option>
+      <option value=">">Is greater than</option>
+      <option value="<">Is less than</option>
+      <option value=">=">Is greater than or equal to</option>
+      <option value="<=">Is less than or equal to</option>
     </select>
     <input type="number" placeholder="value" df-con>
   </div>
