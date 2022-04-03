@@ -107,12 +107,12 @@ function updateNodeData() {
   }
 }
 
-function renderCode() {
+function checkNodes() {
   if (nodeList.length) {
     updateNodeData()
     console.log(nodeList)
-    let validator = true;
     let message;
+    let rootCount = 0;
     for (let node of nodeList) {
       if (node.data.val == '') {
         if (node.class == 'Assign') {
@@ -124,22 +124,38 @@ function renderCode() {
         } else if (node.class == 'Conditional') {
           message = 'You have to define a comparison for all if-else nodes!'
         }
-        validator = false
-        break
+        showWarning(message)
+        return false
+      } else if (node.inputs.input_2 && node.inputs.input_2.connections.length == 0) {
+        showWarning('You have unconnected nodes!')
+        return false
+      } else if (node.inputs.input_3 && node.inputs.input_3.connections.length == 0) {
+        showWarning('You have unconnected nodes!')
+        return false
+      } else if (node.inputs.input_1 && node.inputs.input_1.connections.length == 0) {
+        if (rootCount) {
+          showWarning('Too many root nodes') // mejorar
+          return false
+        } else {
+          rootCount++
+        }
       }
     }
-    if (validator) {
-      let execTree = generateExecTree()
-      console.log(execTree)
-      script = generateCode(execTree)
-      console.log(script)
-      code.value.data = createScript(script)
-      // generar codigo
-    } else { // hacer que el editor enfoque al nodo del error
-      showWarning(message)
-    }
+    return true
   } else {
     showWarning('You haven\'t created any nodes!');
+    return false
+  }
+}
+
+function renderCode() {
+  if (checkNodes()) {
+    let execTree = generateExecTree()
+    console.log(execTree)
+    script = generateCode(execTree)
+    console.log(script)
+    code.value.data = createScript(script)
+    // generar codigo
   }
 }
 
