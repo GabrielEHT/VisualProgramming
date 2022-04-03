@@ -6,6 +6,7 @@ import * as components from './components/nodes.js'
 
 // Crear "helpBox"
 const name = ref("")
+// cambiar "code" por "script" y viceversa
 const code = ref(null)
 const dialog = ref(null)
 const editor = shallowRef({})
@@ -23,16 +24,20 @@ var tempSave = {};
 var coords = {x:100, y:100}
 
 function requestExecution() {
-  const http = new XMLHttpRequest()
-  http.open('POST', 'http://localhost:8080/exec')
-  http.addEventListener('load', () => {
-    console.log(http.response)
-  })
-  let wholeScript = ""
-  for (let line of script) {
-    wholeScript += line
+  if (script) {
+    const http = new XMLHttpRequest()
+    http.open('POST', 'http://localhost:8080/exec')
+    http.addEventListener('load', () => {
+      console.log(http.response)
+    })
+    let wholeScript = ""
+    for (let line of script) {
+      wholeScript += line
+    }
+    http.send(JSON.stringify({data:wholeScript}))
+  } else {
+    showWarning('You don\'t have a script to execute!')
   }
-  http.send(JSON.stringify({data:wholeScript}))
 }
 
 // Añadir animación
@@ -42,21 +47,32 @@ function showWarning(text) {
   setTimeout(() => {warn.value.error = false}, 5000)
 }
 
+function showNameDialog() {
+  if (script) {
+    dialog.value.showModal()
+  } else {
+    showWarning('You don\'t have a script to save!')
+  }
+}
+
 // usar ref para nameLabel?
 function setName() {
   let nameLabel = document.getElementById('script-name')
   nameLabel.innerHTML = name.value
   dialog.value.close()
-  saveCode()
+  saveScript()
 }
 
-// hacer función "overwriteCode"
-function saveCode() {
+function saveScript() {
   tempSave.name = name.value
   tempSave.list = nodeList
-  script.arrayBuffer()
-  .then((data) => {tempSave.code = data})
+  let wholeScript = ""
+  for (let line of script) {
+    wholeScript += line + "|"
+  }
+  tempSave.script = wholeScript.slice(0, -1)
   tempSave.nodes = editor.value.export()
+  console.log(tempSave)
   /*const http = new XMLHttpRequest()
   console.log(tempSave)
   http.open('POST', 'http://localhost:8080/scripts')
@@ -64,13 +80,18 @@ function saveCode() {
   http.send(JSON.stringify(tempSave))*/
 }
 
-function loadCode() {
+function loadScript() {
   let nameLabel = document.getElementById('script-name')
   name.vaule = tempSave.name
   nameLabel.innerHTML = name.value
   nodeList = tempSave.list
-  code.value.data = createScript([tempSave.code])
+  script = tempSave.script.split('|')
+  code.value.data = createScript(script)
   editor.value.import(tempSave.nodes)
+}
+
+function overwriteScript() {
+  //TODO
 }
 
 function getRootNode() {
@@ -122,7 +143,7 @@ function renderCode() {
         } else if (node.class == 'Operation') {
           message = 'You have to select a operation for all operation nodes!'
         } else if (node.class == 'Conditional') {
-          message = 'You have to define a comparison for all if-else nodes!'
+          message = 'You have to select a condition for all if-else nodes!'
         }
         validator = false
         break
@@ -438,11 +459,11 @@ onMounted(() => {
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
-      <button @click="renderCode()" id="generate">Generate code</button>
-      <button @click="requestExecution()" id="execute">Execute code</button>
+      <button @click="renderCode()" id="generate">Generate script</button>
+      <button @click="requestExecution()" id="execute">Execute script</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
-      <button @click="name==''? dialog.showModal() : saveCode()" class="database" id="save">Save code</button>
-      <button @click="loadCode()" class="database" id="load">Load code</button>
+      <button @click="name==''? showNameDialog() : saveScript()" class="database" id="save">Save script</button>
+      <button @click="loadScript()" class="database" id="load">Load script</button>
     </div>
   </div>
 </template>
