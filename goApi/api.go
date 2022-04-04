@@ -20,29 +20,30 @@ func checkStatus(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Ok")
 }
 
+func errorCheck(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
 // crear función para los errores
 func executeCode(w http.ResponseWriter, r *http.Request) {
 	var t map[string]string
 	err := json.NewDecoder(r.Body).Decode(&t)
-	if err != nil {
-		log.Fatal(err)
-	}
+	errorCheck(err)
+
 	file, err := os.Create("./script.py")
-	if err != nil {
-		log.Fatal(err)
-	}
+	errorCheck(err)
+
 	text := []byte(t["data"])
 	_, err = file.Write(text)
-	if err != nil {
-		log.Fatal(err)
-	}
+	errorCheck(err)
+
 	c := exec.Command("python3", "script.py")
 	result, err := c.CombinedOutput()
 	resultStr := string(result)
-	if err != nil {
-		//log.Fatal(err)
-		fmt.Println(err)
-	}
+	errorCheck(err)
+
 	if resultStr == "" {
 		fmt.Fprint(w, "Code executed without errors")
 	} else {
@@ -50,12 +51,28 @@ func executeCode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Test struct {
-	n string
-	a int
+type Person struct {
+	//id 		 int 	  `json:"id,omitempty"`
+	xid 	 string   `json:"xid,omitempty"`
+	name 	 string	  `json:"name,omitempty"`
+	age 	 int 	  `json:"age,omitempty"`
+	friends  []Person `json:"friends,omitempty"`
+	ownsPets []Animal `json:"ownsPets,omitempty"`
+}
+
+type Animal struct {
+	//id 	  int    `json:"id,omitempty"`
+	xid   string `json:"xid,omitempty"`
+	name  string `json:"name,omitempty"`
+	owner Person `json:"owner,omitempty"`
 }
 
 func saveData(w http.ResponseWriter, r *http.Request) {
+	var data map[string]interface{}
+	err := json.NewDecoder(r.Body).Decode(&data)
+	errorCheck(err)
+	fmt.Println(data)
+
 	c, err := dgo.DialCloud("https://blue-surf-580096.us-east-1.aws.cloud.dgraph.io/graphql", "ZjAyNGJhZTc4ZmIxMTVkNTM1NmQ3OGQ1YzRkMjAyNDQ=")
 	if err != nil {
 		log.Fatal(err)
@@ -65,8 +82,24 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
 	opr := &api.Operation{}
 	opr.Schema = `
-		name: string @index(exact).
-		age : int.
+		xid: string .
+	    name: string @index(exact).
+	    age: int .
+	    friends: [uid] .
+	    ownsPets: [uid] .
+
+	    type Person {
+	    	xid: string
+	    	name: string
+	    	age: int
+	    	friends: [Person]
+	    	ownsPets: [Animal]
+	    }
+
+	    type Animal {
+	    	xid: string
+	    	name: string
+	    }
 	`
 
 	err = client.Alter(r.Context(), opr)
@@ -79,12 +112,13 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 		CommitNow: true,
 	}
 
-	var j interface{}
-	err = json.NewDecoder(r.Body).Decode(&j)
-	if err != nil {
-		log.Fatal(err)
+	cosa := Person{
+		xid: "_:mario",
+		name: "Mario",
+		age: 31,
+		friends: []Person{},
+		ownsPets: []Animal{},
 	}
-	cosa := Test{"Prueba", 1}
 	d, err := json.Marshal(cosa)
 	if err != nil {
 		log.Fatal(err)
@@ -95,7 +129,7 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Fprint(w, t)
+	fmt.Fprintf(w, "Json: %v\nUids:%v\nMetrics:%v\n", t.Json, t.Uids, t.Metrics)
 }
 
 func main() {

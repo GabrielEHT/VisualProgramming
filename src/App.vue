@@ -73,11 +73,11 @@ function saveScript() {
   tempSave.script = wholeScript.slice(0, -1)
   tempSave.nodes = editor.value.export()
   console.log(tempSave)
-  /*const http = new XMLHttpRequest()
+  const http = new XMLHttpRequest()
   console.log(tempSave)
   http.open('POST', 'http://localhost:8080/scripts')
   http.addEventListener('load', () => {console.log(http.response)})
-  http.send(JSON.stringify(tempSave))*/
+  http.send(JSON.stringify(tempSave))
 }
 
 function loadScript() {
