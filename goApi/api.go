@@ -52,19 +52,19 @@ func executeCode(w http.ResponseWriter, r *http.Request) {
 }
 
 type Person struct {
-	//id 		 int 	  `json:"id,omitempty"`
-	xid 	 string   `json:"xid,omitempty"`
-	name 	 string	  `json:"name,omitempty"`
-	age 	 int 	  `json:"age,omitempty"`
-	friends  []Person `json:"friends,omitempty"`
-	ownsPets []Animal `json:"ownsPets,omitempty"`
+	Uid 	 string   `json:"uid,omitempty"`
+	Name 	 string	  `json:"name,omitempty"`
+	Age 	 int 	  `json:"age,omitempty"`
+	Friends  []Person `json:"friends,omitempty"`
+	OwnsPets []Animal `json:"ownsPets,omitempty"`
+	Dtype 	 []string `json:"dgraph.type,omitempty"`
 }
 
 type Animal struct {
-	//id 	  int    `json:"id,omitempty"`
-	xid   string `json:"xid,omitempty"`
-	name  string `json:"name,omitempty"`
-	owner Person `json:"owner,omitempty"`
+	uid   string   `json:"uid,omitempty"`
+	name  string   `json:"name,omitempty"`
+	dtype []string `json:"dgraph.type,omitempty"`
+	owner []Person `json:"owner,omitempty"`
 }
 
 func saveData(w http.ResponseWriter, r *http.Request) {
@@ -80,25 +80,24 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 	defer c.Close()
 
 	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
-	opr := &api.Operation{}
+	/*opr := &api.Operation{}
 	opr.Schema = `
-		xid: string .
-	    name: string @index(exact).
+	    name: string @index(term).
 	    age: int .
 	    friends: [uid] .
 	    ownsPets: [uid] .
+	    owner: [uid] .
 
 	    type Person {
-	    	xid: string
-	    	name: string
-	    	age: int
-	    	friends: [Person]
-	    	ownsPets: [Animal]
+	    	name
+	    	age
+	    	friends
+	    	ownsPets
 	    }
 
 	    type Animal {
-	    	xid: string
-	    	name: string
+	    	name
+	    	owner
 	    }
 	`
 
@@ -106,23 +105,24 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Fatal(err)
-	}
+	}*/
 
 	m := &api.Mutation{
 		CommitNow: true,
 	}
 
 	cosa := Person{
-		xid: "_:mario",
-		name: "Mario",
-		age: 31,
-		friends: []Person{},
-		ownsPets: []Animal{},
+		Uid: "_:mario",
+		Name: "Mario",
+		Age: 31,
+		Dtype: []string{"Person"},
 	}
-	d, err := json.Marshal(cosa)
+	d, err := json.Marshal(&cosa)
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Printf("Json:%s\n", d)
+	fmt.Printf("Json:%s", string(d))
 	m.SetJson = d
 
 	t, err := client.NewTxn().Mutate(r.Context(), m)
