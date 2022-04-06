@@ -16,6 +16,23 @@ import (
 	"github.com/dgraph-io/dgo/v210/protos/api"
 )
 
+type User struct {
+	Uid      string   `json:"uid"`
+	Name     string   `json:"name"`
+	Password string   `json:"pass"`
+	Scripts  []Script `json:"scripts"`
+	Dtype    []string `json:"dgraph.type"`
+}
+
+type Script struct {
+	Uid      string   `json:"uid"`
+	Name     string   `json:"name"`
+	Code     string   `json:"code"`
+	List     string   `json:"nodeList"`
+	Drawflow string   `json:"drawflow"`
+	Dtype    []string `json:"dgraph.type"`
+}
+
 func checkStatus(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "Ok")
 }
@@ -51,85 +68,62 @@ func executeCode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type Person struct {
-	Uid 	 string   `json:"uid,omitempty"`
-	Name 	 string	  `json:"name,omitempty"`
-	Age 	 int 	  `json:"age,omitempty"`
-	Friends  []Person `json:"friends,omitempty"`
-	OwnsPets []Animal `json:"ownsPets,omitempty"`
-	Dtype 	 []string `json:"dgraph.type,omitempty"`
-}
-
-type Animal struct {
-	uid   string   `json:"uid,omitempty"`
-	name  string   `json:"name,omitempty"`
-	dtype []string `json:"dgraph.type,omitempty"`
-	owner []Person `json:"owner,omitempty"`
-}
-
 func saveData(w http.ResponseWriter, r *http.Request) {
-	var data map[string]interface{}
+	var data map[string]string
 	err := json.NewDecoder(r.Body).Decode(&data)
 	errorCheck(err)
-	fmt.Println(data)
 
 	c, err := dgo.DialCloud("https://blue-surf-580096.us-east-1.aws.cloud.dgraph.io/graphql", "ZjAyNGJhZTc4ZmIxMTVkNTM1NmQ3OGQ1YzRkMjAyNDQ=")
-	if err != nil {
-		log.Fatal(err)
-	}
+	errorCheck(err)
 	defer c.Close()
-
 	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
-	/*opr := &api.Operation{}
-	opr.Schema = `
-	    name: string @index(term).
-	    age: int .
-	    friends: [uid] .
-	    ownsPets: [uid] .
-	    owner: [uid] .
 
-	    type Person {
-	    	name
-	    	age
-	    	friends
-	    	ownsPets
-	    }
-
-	    type Animal {
-	    	name
-	    	owner
-	    }
+	vars := make(map[string]string)
+	vars["$usr"] = data["user"]
+	vars["$pwd"] = data["password"]
+	q := `
+		query Usr($usr: string, $pwd: string) {
+			getUsr(func: eq(name, $usr)) {
+				uid
+				checkpwd(pass, $pwd)
+			}
+		}
 	`
+	response,err := client.NewReadOnlyTxn().QueryWithVars(r.Context(), q, vars)
+	errorCheck(err)
+	var jsonResp map[string][]map[string]interface{}
+	err = json.Unmarshal(response.Json, &jsonResp)
+	errorCheck(err)
+	if jsonResp["getUsr"][0]["checkpwd(pass)"] == false {
+		fmt.Fprint(w, "Wrong password")
+	} else {
+		uid := jsonResp["getUsr"][0]["uid"].(string)
+		m := &api.Mutation{
+			CommitNow: true,
+		}
+		md := User{
+			Uid:uid,
+			Name:data["user"],
+			Password:data["password"],
+			Dtype:[]string{"User"},
+			Scripts:[]Script{{
+				Uid:"_:newScript",
+				Name:data["name"],
+				Code:data["script"],
+				List:data["list"],
+				Drawflow:data["nodes"],
+				Dtype:[]string{"Scrìpt"},
 
-	err = client.Alter(r.Context(), opr)
+			}},
 
-	if err != nil {
-		log.Fatal(err)
-	}*/
-
-	m := &api.Mutation{
-		CommitNow: true,
+		}
+		d, err := json.Marshal(&md)
+		errorCheck(err)
+		m.SetJson = d
+		result, err := client.NewTxn().Mutate(r.Context(), m)
+		errorCheck(err)
+		fmt.Fprintf(w, "Json: %v\nUids:%v\nMetrics:%v\n", result.Txn, result.Uids, result.Metrics)
 	}
-
-	cosa := Person{
-		Uid: "_:mario",
-		Name: "Mario",
-		Age: 31,
-		Dtype: []string{"Person"},
-	}
-	d, err := json.Marshal(&cosa)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("Json:%s\n", d)
-	fmt.Printf("Json:%s", string(d))
-	m.SetJson = d
-
-	t, err := client.NewTxn().Mutate(r.Context(), m)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Fprintf(w, "Json: %v\nUids:%v\nMetrics:%v\n", t.Json, t.Uids, t.Metrics)
 }
 
 func main() {

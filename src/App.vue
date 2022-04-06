@@ -65,16 +65,17 @@ function setName() {
 
 function saveScript() {
   tempSave.name = name.value
-  tempSave.list = nodeList
-  let wholeScript = ""
+  tempSave.list = JSON.stringify(nodeList) + '|'
+  let wholeScript = ''
   for (let line of script) {
-    wholeScript += line + "|"
+    wholeScript += line + '|'
   }
   tempSave.script = wholeScript.slice(0, -1)
-  tempSave.nodes = editor.value.export()
+  tempSave.nodes = JSON.stringify(editor.value.export()) + '|'
+  tempSave.user = "Admin"
+  tempSave.password = "123456789"
   console.log(tempSave)
   const http = new XMLHttpRequest()
-  console.log(tempSave)
   http.open('POST', 'http://localhost:8080/scripts')
   http.addEventListener('load', () => {console.log(http.response)})
   http.send(JSON.stringify(tempSave))
