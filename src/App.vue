@@ -595,6 +595,7 @@ onMounted(() => {
     background-color: rgb(220, 230, 240);
 }
 
+.drawflow .parent-node .drawflow-node.Conditional .output,
 .drawflow .parent-node .drawflow-node .output.output_1,
 .drawflow .parent-node .drawflow-node .input.input_1 {
   background-color: rgba(255, 255, 255, 0);
@@ -644,6 +645,30 @@ onMounted(() => {
 .drawflow .drawflow-node.Value .input,
 .drawflow .drawflow-node.Value .output{
   top: 22px;
+}
+
+.drawflow .drawflow-node.Conditional .drawflow_content_node {
+  height: 182px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_1 {
+  top: -39px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_2{
+  top: -10px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_3{
+  top: 23px;
+}
+
+.drawflow .drawflow-node.Conditional .output {
+  top: 53px;
+}
+
+.drawflow .drawflow-node.Conditional .output.output_1 {
+  top: -43px;
 }
 
 .drawflow .drawflow-node.Loop .output {
