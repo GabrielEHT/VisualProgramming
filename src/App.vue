@@ -8,7 +8,9 @@ import * as components from './components/nodes.js'
 const name = ref("")
 // cambiar "code" por "script" y viceversa
 const code = ref(null)
-const dialog = ref(null)
+const nameDiag = ref(null)
+const listDiag = ref(null)
+const scriptList = ref([])
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
@@ -49,17 +51,18 @@ function showWarning(text) {
 
 function showNameDialog() {
   if (script) {
-    dialog.value.showModal()
+    nameDiag.value.showModal()
   } else {
     showWarning('You don\'t have a script to save!')
   }
 }
 
+// hacer que "nameLabel" se actualice automáticamente al alterarse "name"
 // usar ref para nameLabel?
 function setName() {
   let nameLabel = document.getElementById('script-name')
   nameLabel.innerHTML = name.value
-  dialog.value.close()
+  nameDiag.value.close()
   saveScript()
 }
 
@@ -81,18 +84,30 @@ function saveScript() {
   http.send(JSON.stringify(tempSave))
 }
 
-function loadScript() {
-  let nameLabel = document.getElementById('script-name')
-  name.vaule = tempSave.name
-  nameLabel.innerHTML = name.value
-  nodeList = tempSave.list
-  script = tempSave.script.split('|')
-  code.value.data = createScript(script)
-  editor.value.import(tempSave.nodes)
+// hacer que muestre un mensaje cuando "scriptList" es null
+function getScriptList() {
+  const http = new XMLHttpRequest()
+  http.open('GET', 'http://localhost:8080/users/Admin')
+  http.addEventListener('load', () => {
+    scriptList.value = JSON.parse(http.response)
+    listDiag.value.showModal()
+  })
+  http.send()
 }
 
-function overwriteScript() {
-  //TODO
+function loadScript(scriptName) {
+  listDiag.value.close()
+  const http = new XMLHttpRequest()
+  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName.replaceAll(' ', '_'))
+  http.addEventListener('load', () => {
+    const resp = JSON.parse(http.response)
+    name.value = resp.name
+    nodeList = JSON.parse(resp.nodeList.slice(0, -1))
+    editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
+    script = resp.code.split("|")
+    code.value.data = createScript(script)
+  })
+  http.send()
 }
 
 function getRootNode() {
@@ -442,11 +457,22 @@ onMounted(() => {
         <p>{{warn.text}}</p>
       </dialog>
     </div>
-    <dialog ref="dialog">
+    <dialog ref="nameDiag">
       <p>Enter a name</p>
       <input type="text" placeholder="Name" v-model="name">
-      <button @click="dialog.close()">Cancel</button>
+      <button @click="nameDiag.close()">Cancel</button>
       <button @click="setName()">Accept</button>
+    </dialog>
+    <dialog ref="listDiag">
+      <h1>Your scripts:</h1>
+      <button @click="listDiag.close()">X</button>
+      <div>
+        <ul>
+          <li v-for="userScript in scriptList">
+            <button @click="loadScript(userScript.name)">{{userScript.name}}</button>
+          </li>
+        </ul>
+      </div>
     </dialog>
     <p id="script-name">Unsaved</p>
     <div class="left-panel">
@@ -464,7 +490,7 @@ onMounted(() => {
       <button @click="requestExecution()" id="execute">Execute script</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
       <button @click="name==''? showNameDialog() : saveScript()" class="database" id="save">Save script</button>
-      <button @click="loadScript()" class="database" id="load">Load script</button>
+      <button @click="getScriptList()" class="database" id="load">Load script</button>
     </div>
   </div>
 </template>

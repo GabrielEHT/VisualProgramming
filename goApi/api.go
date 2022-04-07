@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
-	//"strings"
+	"strings"
 	//"strconv"
 	"net/http"
 	"encoding/json"
@@ -91,6 +91,7 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 	`
 	response,err := client.NewReadOnlyTxn().QueryWithVars(r.Context(), q, vars)
 	errorCheck(err)
+
 	var jsonResp map[string][]map[string]interface{}
 	err = json.Unmarshal(response.Json, &jsonResp)
 	errorCheck(err)
@@ -126,12 +127,76 @@ func saveData(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getScriptList(w http.ResponseWriter, r *http.Request) {
+	c, err := dgo.DialCloud("https://blue-surf-580096.us-east-1.aws.cloud.dgraph.io/graphql", "ZjAyNGJhZTc4ZmIxMTVkNTM1NmQ3OGQ1YzRkMjAyNDQ=")
+	errorCheck(err)
+	defer c.Close()
+
+	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
+
+	vars := make(map[string]string)
+	vars["$usr"] = chi.URLParam(r, "user")
+	q := `
+		query Usr($usr: string) {
+			getUsr(func: eq(name, $usr)) {
+				scripts {
+					name
+				}
+			}
+		}
+	`
+	response,err := client.NewReadOnlyTxn().QueryWithVars(r.Context(), q, vars)
+	errorCheck(err)
+
+	var jsonResp map[string][]map[string]interface{}
+	err = json.Unmarshal(response.Json, &jsonResp)
+	errorCheck(err)
+
+	err = json.NewEncoder(w).Encode(jsonResp["getUsr"][0]["scripts"])
+	errorCheck(err)
+}
+
+func getScript(w http.ResponseWriter, r *http.Request) {
+	c, err := dgo.DialCloud("https://blue-surf-580096.us-east-1.aws.cloud.dgraph.io/graphql", "ZjAyNGJhZTc4ZmIxMTVkNTM1NmQ3OGQ1YzRkMjAyNDQ=")
+	errorCheck(err)
+	defer c.Close()
+
+	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
+
+	vars := make(map[string]string)
+	vars["$st"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
+	vars["$usr"] = chi.URLParam(r, "user")
+	q := `
+		query Usr($usr: string, $st: string) {
+			getUsr(func: eq(name, $usr)) {
+				scripts @filter(eq(name, $st)){
+					name
+					code
+					nodeList
+					drawflow
+				}
+			}
+		}
+	`
+	response,err := client.NewReadOnlyTxn().QueryWithVars(r.Context(), q, vars)
+	errorCheck(err)
+
+	var jsonResp map[string][]map[string][]interface{}
+	err = json.Unmarshal(response.Json, &jsonResp)
+	errorCheck(err)
+
+	err = json.NewEncoder(w).Encode(jsonResp["getUsr"][0]["scripts"][0])
+	errorCheck(err)
+}
+
 func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.SetHeader("Access-Control-Allow-Origin", "*"))
 	router.Get("/", checkStatus)
+	router.Get("/users/{user}", getScriptList)
+	router.Get("/users/{user}/{script}", getScript)
 	router.Post("/scripts", saveData)
 	router.Post("/exec", executeCode)
 	log.Fatal(http.ListenAndServe(":8080", router))
