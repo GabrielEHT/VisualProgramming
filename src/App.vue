@@ -25,6 +25,27 @@ var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
 
+// Añadir animación
+function showWarning(text) {
+  warn.value.text = text
+  warn.value.error = true
+  setTimeout(() => {warn.value.error = false}, 5000)
+}
+
+function showNameDialog() {
+  if (script) {
+    nameDiag.value.showModal()
+  } else {
+    showWarning('You don\'t have a script to save!')
+  }
+}
+
+function setName() {
+  let nameLabel = document.getElementById('script-name')
+  nameLabel.innerHTML = name.value
+  nameDiag.value.close()
+}
+
 function requestExecution() {
   if (script) {
     const http = new XMLHttpRequest()
@@ -42,46 +63,26 @@ function requestExecution() {
   }
 }
 
-// Añadir animación
-function showWarning(text) {
-  warn.value.text = text
-  warn.value.error = true
-  setTimeout(() => {warn.value.error = false}, 5000)
-}
-
-function showNameDialog() {
-  if (script) {
-    nameDiag.value.showModal()
+function saveScript(newScript) {
+  const http = new XMLHttpRequest()
+  let data = {}
+  if (newScript) {
+    setName()
+    data.name = name.value.replaceAll(' ', '_')
+    http.open('POST', 'http://localhost:8080/users/Admin')
   } else {
-    showWarning('You don\'t have a script to save!')
+    http.open('POST', 'http://localhost:8080/users/Admin/' + name.value.replaceAll(' ', '_'))    
   }
-}
-
-// hacer que "nameLabel" se actualice automáticamente al alterarse "name"
-// usar ref para nameLabel?
-function setName() {
-  let nameLabel = document.getElementById('script-name')
-  nameLabel.innerHTML = name.value
-  nameDiag.value.close()
-  saveScript()
-}
-
-function saveScript() {
-  tempSave.name = name.value
-  tempSave.list = JSON.stringify(nodeList) + '|'
+  data.list = JSON.stringify(nodeList) + '|'
   let wholeScript = ''
   for (let line of script) {
     wholeScript += line + '|'
   }
-  tempSave.script = wholeScript.slice(0, -1)
-  tempSave.nodes = JSON.stringify(editor.value.export()) + '|'
-  tempSave.user = "Admin"
-  tempSave.password = "123456789"
-  console.log(tempSave)
-  const http = new XMLHttpRequest()
-  http.open('POST', 'http://localhost:8080/scripts')
+  data.script = wholeScript.slice(0, -1)
+  data.nodes = JSON.stringify(editor.value.export()) + '|'
+  console.log(data)
   http.addEventListener('load', () => {console.log(http.response)})
-  http.send(JSON.stringify(tempSave))
+  http.send(JSON.stringify(data))
 }
 
 // hacer que muestre un mensaje cuando "scriptList" es null
@@ -98,10 +99,11 @@ function getScriptList() {
 function loadScript(scriptName) {
   listDiag.value.close()
   const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName.replaceAll(' ', '_'))
+  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName.replaceAll(' ', '_')) // replaceAll redundante
   http.addEventListener('load', () => {
     const resp = JSON.parse(http.response)
-    name.value = resp.name
+    name.value = resp.name.replaceAll('_', ' ')
+    setName()
     nodeList = JSON.parse(resp.nodeList.slice(0, -1))
     editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
     script = resp.code.split("|")
@@ -461,7 +463,7 @@ onMounted(() => {
       <p>Enter a name</p>
       <input type="text" placeholder="Name" v-model="name">
       <button @click="nameDiag.close()">Cancel</button>
-      <button @click="setName()">Accept</button>
+      <button @click="saveScript(true)">Accept</button>
     </dialog>
     <dialog ref="listDiag">
       <h1>Your scripts:</h1>
@@ -469,7 +471,7 @@ onMounted(() => {
       <div>
         <ul>
           <li v-for="userScript in scriptList">
-            <button @click="loadScript(userScript.name)">{{userScript.name}}</button>
+            <button @click="loadScript(userScript.name)">{{userScript.name.replaceAll('_', ' ')}}</button>
           </li>
         </ul>
       </div>
