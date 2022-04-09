@@ -11,11 +11,13 @@ const dialog = ref(null)
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
-  {name:'assignation', type:'assign', class:'Assign', in:2, out:2}, //flow input and output, value input and output
-  {name:'number', type:'num', class:'Value'}, //no inputs, value output
-  {name:'operation', type:'operations', class:'Operation', in:2}, //two value inputs, value output
-  {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:3}, //flow input, two value inputs and three flow outputs
-  {name:'for loop', type:'flowloop', class:'Loop', in:2, out:2} //flow input, value input and two flow outputs
+  {name:'Assignation', type:'assign', class:'Assign', in:2, out:2}, // flow input and output, value input and output
+  {name:'Number', type:'num', class:'Value'}, // no inputs, value output
+  {name:'Variable', type:'var', class:'Value'}, // no inputs, value output
+  {name:'Operation', type:'operations', class:'Operation', in:2}, // two value inputs, value output
+  {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3}, // flow input, two value inputs and three flow outputs
+  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:2}, // flow input, value input and two flow outputs
+  {name:'Print', type:'misc', class:'Misc', in:2} // flow and value inputs, flow output
 ])
 var script;
 var nodeList = [];
@@ -114,11 +116,11 @@ function checkNodes() {
     let message;
     let rootCount = 0;
     for (let node of nodeList) {
-      if (node.data.val == '') {
+      if (node.data.val == '' && node.class != 'Misc') {
         if (node.class == 'Assign') {
           message = 'There is an assignation node without name!'
         } else if (node.class == 'Value') {
-          message = 'There is a number node without a value!'
+          message = `There is a ${node.name.toLowerCase()} node without a value!`
         } else if (node.class == 'Operation') {
           message = 'You have to select a operation for all operation nodes!'
         } else if (node.class == 'Conditional') {
@@ -219,6 +221,10 @@ function generateCode(execTree, indentLevel) {
       for (let indLine of forBlock) {
         codeText.push(indLine)
       }
+    } else if (line.hasOwnProperty('print')) {
+      let node = editor.value.getNodeFromId(line.print)
+      let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
+      codeText.push(spaces + 'print(' + result + ')\n')
     }
   }
   return codeText
@@ -247,6 +253,8 @@ function generateExecTree(rootNode, execTree) {
     nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
     loop['for'] = generateExecTree(nextNode, [])
     execTree.push(loop)
+  } else if (rootNode.class == 'Misc') {
+    execTree.push({'print':rootNode.id})
   } else {
     execTree.push({'assign':rootNode.id})
   }
@@ -315,6 +323,8 @@ onMounted(() => {
       comp = components.conditional
     } else if (node.class == 'Loop') {
       comp = components.loop
+    } else if (node.class == 'Misc') {
+      comp = components.misc
     } else {
       comp = components.datatypes
     }
@@ -339,7 +349,7 @@ onMounted(() => {
       flow_outputs = ['output_1', 'output_2', 'output_3']
     } else if (node.class == 'Loop') {
       flow_outputs = ['output_1', 'output_2']
-    } else if (node.class == 'Assign') { // cambiar para usar class en lugar de html
+    } else if (node.class != 'Operation' && node.class != 'Value') {
       flow_outputs = ['output_1']
     }
     node.flow_inputs = flow_inputs
@@ -386,25 +396,6 @@ onMounted(() => {
     }
   })
 
-  // arreglar
-  // Updates connection state of output node on removed connection
-  editor.value.on('connectionRemoved', (data) => {
-    let output = editor.value.getNodeFromId(data.output_id)
-    let disconnected = false
-    if (output.class == 'Conditional') {
-      if (output.outputs.output_1.connections.length == 0 && output.outputs.output_2.connections.length == 0) {
-        disconnected = true
-      }
-    } else {
-      disconnected = true
-    }
-    for (let node of nodeList) {
-      if (node.id == data.output_id && disconnected) {
-        node.output = false
-      }
-    }
-  })
-
   // Keeps track of the screen position
   editor.value.on('translate', (pos) => {
     coords.x = pos.x * -1 + 100
@@ -434,7 +425,7 @@ onMounted(() => {
       <h3>Nodes</h3>
       <ul>
         <li v-for="data in nodeData">
-          <button @click="addNode(data)">New {{data.name}}</button>
+          <button @click="addNode(data)">{{data.name}}</button>
         </li>
       </ul>
       <button @click="editor.clear()">Clear editor</button>
@@ -596,8 +587,8 @@ onMounted(() => {
 }
 
 .drawflow .parent-node .drawflow-node.Conditional .output,
-.drawflow .parent-node .drawflow-node .output.output_1,
-.drawflow .parent-node .drawflow-node .input.input_1 {
+.drawflow .parent-node .drawflow-node:not(.Value):not(.Operation) .output.output_1,
+.drawflow .parent-node .drawflow-node:not(.Operation) .input.input_1 {
   background-color: rgba(255, 255, 255, 0);
   border-radius: 0;
   border-left: 20px solid mediumorchid;
@@ -674,6 +665,11 @@ onMounted(() => {
 .drawflow .drawflow-node.Loop .output {
   top: 42px;
   right: -4px;
+}
+
+.drawflow .drawflow-node.Misc .output {
+  top: -12px;
+  right: -8px;
 }
 
 </style>
