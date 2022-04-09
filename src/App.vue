@@ -16,7 +16,7 @@ const nodeData = ref([
   {name:'Variable', type:'var', class:'Value'}, // no inputs, value output
   {name:'Operation', type:'operations', class:'Operation', in:2}, // two value inputs, value output
   {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3}, // flow input, two value inputs and three flow outputs
-  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:2}, // flow input, value input and two flow outputs
+  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:3}, // flow input, value input, value output and two flow outputs
   {name:'Print', type:'misc', class:'Misc', in:2} // flow and value inputs, flow output
 ])
 var script;
@@ -172,6 +172,7 @@ function resolveValueNodes(id) {
   let result
   switch (node.class) {
     case 'Assign':
+    case 'Loop':
     case 'Value':
       result = node.data.val
       break
@@ -577,6 +578,8 @@ onMounted(() => {
 
 <style>
 
+/* Nodes colors */
+
 .drawflow .parent-node .drawflow-node {
     background-color: rgb(200, 210, 220);
     width: auto;
@@ -586,8 +589,11 @@ onMounted(() => {
     background-color: rgb(220, 230, 240);
 }
 
+/* Colors for flow outputs */
+
 .drawflow .parent-node .drawflow-node.Conditional .output,
 .drawflow .parent-node .drawflow-node:not(.Value):not(.Operation) .output.output_1,
+.drawflow .parent-node .drawflow-node.Loop .output.output_2,
 .drawflow .parent-node .drawflow-node:not(.Operation) .input.input_1 {
   background-color: rgba(255, 255, 255, 0);
   border-radius: 0;
@@ -598,6 +604,18 @@ onMounted(() => {
   width: 0px;
   height: 0px;
 }
+
+/* Colors for value outputs */
+
+.drawflow .parent-node .drawflow-node .output {
+  background-color: rgb(255, 167, 33);
+}
+
+.drawflow .drawflow-node .output:hover {
+  background-color: rgb(255, 194, 102);
+}
+
+/* Assignation node styling */
 
 .drawflow .parent-node .drawflow-node.Assign .output.output_1,
 .drawflow .parent-node .drawflow-node.Assign .input.input_1 {
@@ -617,13 +635,7 @@ onMounted(() => {
   left: 8px
 }
 
-.drawflow .parent-node .drawflow-node .output {
-  background-color: rgb(255, 167, 33);
-}
-
-.drawflow .parent-node .drawflow-node .output:hover {
-  background-color: rgb(255, 194, 102);
-}
+/* Operation node styling */
 
 .drawflow .drawflow-node.Operation .input {
   top: 34px;
@@ -633,10 +645,14 @@ onMounted(() => {
   top: 49px;
 }
 
+/* Value nodes styling */
+
 .drawflow .drawflow-node.Value .input,
 .drawflow .drawflow-node.Value .output{
   top: 22px;
 }
+
+/* If-else node styling */
 
 .drawflow .drawflow-node.Conditional .drawflow_content_node {
   height: 182px;
@@ -662,10 +678,31 @@ onMounted(() => {
   top: -43px;
 }
 
-.drawflow .drawflow-node.Loop .output {
-  top: 42px;
-  right: -4px;
+/* For loop node styling */
+
+.drawflow .drawflow-node.Loop .drawflow_content_node {
+  height: 125px;
 }
+
+.drawflow .drawflow-node.Loop .input.input_1 {
+  top: -26px;
+  left: -26px;
+}
+
+.drawflow .drawflow-node.Loop .input {
+  top: 3px;
+}
+
+.drawflow .drawflow-node.Loop .output.output_1 {
+  top: -12px;
+}
+
+.drawflow .drawflow-node.Loop .output {
+  top: 31px;
+  right: -6px;
+}
+
+/* Miscellaneous nodes styling */
 
 .drawflow .drawflow-node.Misc .output {
   top: -12px;

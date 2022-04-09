@@ -1,33 +1,39 @@
 <template>
   <h1>For loop</h1>
   <h2>For:</h2>
-  <h3>value</h3>
-  <h2 id="out">Do</h2>
+  <p id="val">value</p>
+  <h2 id="out">Do:</h2>
+  <p id="iter">iterator</p>
 </template>
 
 <style scoped>
-  div {
-    width: 100%;
-    height: 100%;
-  }
-
-  h1 {
+  h1,
+  h2,
+  p {
     font-family: Arial, Helvetica, sans-serif;
+  }
+  
+  h1 {
     font-size: medium;
   }
 
-  h2 {
-    font-family: Arial, Helvetica, sans-serif;
+  h2,
+  p {
+    position: relative;
     font-size: small;
   }
 
-  h3 {
-    font-size: smaller;
+  #val {
+    top: -1px;
   }
 
   #out {
-    position: relative;
-    right: -48px;
-    bottom: -12px;
+    right: -43px;
+    bottom: 14px;
+  }
+
+  #iter {
+    right: -25px;
+    bottom: 16px;
   }
 </style>
