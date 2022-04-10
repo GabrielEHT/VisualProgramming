@@ -14,11 +14,13 @@ const scriptList = ref([])
 const editor = shallowRef({})
 const warn = ref({error:false})
 const nodeData = ref([
-  {name:'assignation', type:'assign', class:'Value', in:2, out:2}, //flow input and output, value input and output
-  {name:'number', type:'num', class:'Value'}, //no inputs, value output
-  {name:'operation', type:'operations', class:'Operation', in:2}, //two value inputs, value output
-  {name:'if-else block', type:'flowcon', class:'Conditional', in:3, out:2}, //flow input, two value inputs and two flow outputs
-  {name:'for loop', type:'flowloop', class:'Loop', in:2} //flow input, value input and flow output
+  {name:'Assignation', type:'assign', class:'Assign', in:2, out:2}, // flow input and output, value input and output
+  {name:'Number', type:'num', class:'Value'}, // no inputs, value output
+  {name:'Variable', type:'var', class:'Value'}, // no inputs, value output
+  {name:'Operation', type:'operations', class:'Operation', in:2}, // two value inputs, value output
+  {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3}, // flow input, two value inputs and three flow outputs
+  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:3}, // flow input, value input, value output and two flow outputs
+  {name:'Print', type:'misc', class:'Misc', in:2} // flow and value inputs, flow output
 ])
 var script;
 var nodeList = [];
@@ -146,39 +148,55 @@ function updateNodeData() {
   }
 }
 
-function renderCode() {
+function checkNodes() {
   if (nodeList.length) {
     updateNodeData()
     console.log(nodeList)
-    let validator = true;
     let message;
+    let rootCount = 0;
     for (let node of nodeList) {
-      if (node.data.val == '') {
-        if (node.html == 'assign') { // cambiar para usar class
+      if (node.data.val == '' && node.class != 'Misc') {
+        if (node.class == 'Assign') {
           message = 'There is an assignation node without name!'
-        } else if (node.html == 'num') {
-          message = 'There is a number node without a value!'
+        } else if (node.class == 'Value') {
+          message = `There is a ${node.name.toLowerCase()} node without a value!`
         } else if (node.class == 'Operation') {
           message = 'You have to select a operation for all operation nodes!'
         } else if (node.class == 'Conditional') {
           message = 'You have to select a condition for all if-else nodes!'
         }
-        validator = false
-        break
+        showWarning(message)
+        return false
+      } else if (node.inputs.input_2 && node.inputs.input_2.connections.length == 0) {
+        showWarning('You have unconnected nodes!')
+        return false
+      } else if (node.inputs.input_3 && node.inputs.input_3.connections.length == 0) {
+        showWarning('You have unconnected nodes!')
+        return false
+      } else if (node.inputs.input_1 && node.inputs.input_1.connections.length == 0) {
+        if (rootCount) {
+          showWarning('Too many root nodes') // mejorar
+          return false
+        } else {
+          rootCount++
+        }
       }
     }
-    if (validator) {
-      let execTree = generateExecTree()
-      console.log(execTree)
-      script = generateCode(execTree)
-      console.log(script)
-      code.value.data = createScript(script)
-      // generar codigo
-    } else { // hacer que el editor enfoque al nodo del error
-      showWarning(message)
-    }
+    return true
   } else {
     showWarning('You haven\'t created any nodes!');
+    return false
+  }
+}
+
+function renderCode() {
+  if (checkNodes()) {
+    let execTree = generateExecTree()
+    console.log(execTree)
+    script = generateCode(execTree)
+    console.log(script)
+    code.value.data = createScript(script)
+    // generar codigo
   }
 }
 
@@ -192,6 +210,8 @@ function resolveValueNodes(id) {
   let node = editor.value.getNodeFromId(id)
   let result
   switch (node.class) {
+    case 'Assign':
+    case 'Loop':
     case 'Value':
       result = node.data.val
       break
@@ -226,10 +246,12 @@ function generateCode(execTree, indentLevel) {
       for (let indLine of ifBlock) {
         codeText.push(indLine)
       }
-      codeText.push(spaces + 'else:\n')
-      let elseBlock = generateCode(line['else'], indentLevel + 1)
-      for (let indLine of elseBlock) {
-        codeText.push(indLine)
+      if (line['else']) {
+        codeText.push(spaces + 'else:\n')
+        let elseBlock = generateCode(line['else'], indentLevel + 1)
+        for (let indLine of elseBlock) {
+          codeText.push(indLine)
+        }
       }
     } else if (line.hasOwnProperty('for')) {
       let node = editor.value.getNodeFromId(line.id)
@@ -239,29 +261,13 @@ function generateCode(execTree, indentLevel) {
       for (let indLine of forBlock) {
         codeText.push(indLine)
       }
+    } else if (line.hasOwnProperty('print')) {
+      let node = editor.value.getNodeFromId(line.print)
+      let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
+      codeText.push(spaces + 'print(' + result + ')\n')
     }
   }
   return codeText
-  /*if (nodeInfo.name == 'assignation') {
-    codeLine = nodeInfo.data.val + ' = '
-  } else if (nodeInfo.name == 'operation') {
-    let symbol;
-    if (nodeInfo.data.val == 'add') {
-      symbol = '+'
-    } else if (nodeInfo.data.val == 'sub') {
-      symbol = '-'
-    } else if (nodeInfo.data.val == 'mul') {
-      symbol = '*'
-    } else if (nodeInfo.data.val == 'div') {
-      symbol = '/'
-    }
-    let aNum = generateCode(inputs.input_1.connections[0].node)
-    let bNum = generateCode(inputs.input_2.connections[0].node)
-    codeLine = `${aNum} ${symbol} ${bNum}`
-    formated = true;
-  } else {
-    codeLine = nodeInfo.data.val
-  }*/
 }
 
 function generateExecTree(rootNode, execTree) {
@@ -275,24 +281,26 @@ function generateExecTree(rootNode, execTree) {
   let nextNode;
   if (rootNode.class == 'Conditional') {
     let conditional = {id:rootNode.id}
-    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
     conditional['if'] = generateExecTree(nextNode, [])
-    if (rootNode.outputs.output_2.connections.length > 0) {
-      nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
+    if (rootNode.outputs.output_3.connections.length > 0) {
+      nextNode = getNodeFromId(rootNode.outputs.output_3.connections[0].node);
       conditional['else'] = generateExecTree(nextNode, [])
     }
     execTree.push(conditional)
   } else if (rootNode.class == 'Loop') {
     let loop = {id:rootNode.id}
-    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
     loop['for'] = generateExecTree(nextNode, [])
     execTree.push(loop)
+  } else if (rootNode.class == 'Misc') {
+    execTree.push({'print':rootNode.id})
   } else {
     execTree.push({'assign':rootNode.id})
-    if (rootNode.outputs.output_1.connections.length > 0) {
-      nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
-      execTree = generateExecTree(nextNode, execTree)
-    }
+  }
+  if (rootNode.outputs.output_1.connections.length > 0) {
+    nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
+    execTree = generateExecTree(nextNode, execTree)
   }
   return execTree
 }
@@ -344,7 +352,9 @@ onMounted(() => {
   for (let node of nodeData.value) {
     var comp;
     var props = {};
-    if (node.class == 'Operation') {
+    if (node.class == 'Assign') {
+      comp = components.assign
+    } else if (node.class == 'Operation') {
       comp = components.operations
     } else if (node.class == 'Value') {
       comp = components.datatypes
@@ -353,6 +363,8 @@ onMounted(() => {
       comp = components.conditional
     } else if (node.class == 'Loop') {
       comp = components.loop
+    } else if (node.class == 'Misc') {
+      comp = components.misc
     } else {
       comp = components.datatypes
     }
@@ -374,8 +386,10 @@ onMounted(() => {
       flow_inputs = ['input_1']
     }
     if (node.class == 'Conditional') {
+      flow_outputs = ['output_1', 'output_2', 'output_3']
+    } else if (node.class == 'Loop') {
       flow_outputs = ['output_1', 'output_2']
-    } else if (node.class == 'Loop' || node.html == 'assign') { // cambiar para usar class en lugar de html
+    } else if (node.class != 'Operation' && node.class != 'Value') {
       flow_outputs = ['output_1']
     }
     node.flow_inputs = flow_inputs
@@ -422,25 +436,6 @@ onMounted(() => {
     }
   })
 
-  // arreglar
-  // Updates connection state of output node on removed connection
-  editor.value.on('connectionRemoved', (data) => {
-    let output = editor.value.getNodeFromId(data.output_id)
-    let disconnected = false
-    if (output.class == 'Conditional') {
-      if (output.outputs.output_1.connections.length == 0 && output.outputs.output_2.connections.length == 0) {
-        disconnected = true
-      }
-    } else {
-      disconnected = true
-    }
-    for (let node of nodeList) {
-      if (node.id == data.output_id && disconnected) {
-        node.output = false
-      }
-    }
-  })
-
   // Keeps track of the screen position
   editor.value.on('translate', (pos) => {
     coords.x = pos.x * -1 + 100
@@ -481,7 +476,7 @@ onMounted(() => {
       <h3>Nodes</h3>
       <ul>
         <li v-for="data in nodeData">
-          <button @click="addNode(data)">New {{data.name}}</button>
+          <button @click="addNode(data)">{{data.name}}</button>
         </li>
       </ul>
       <button @click="editor.clear()">Clear editor</button>
@@ -633,6 +628,8 @@ onMounted(() => {
 
 <style>
 
+/* Nodes colors */
+
 .drawflow .parent-node .drawflow-node {
     background-color: rgb(200, 210, 220);
     width: auto;
@@ -642,7 +639,12 @@ onMounted(() => {
     background-color: rgb(220, 230, 240);
 }
 
-.drawflow .parent-node .drawflow-node .input.input_1 {
+/* Colors for flow outputs */
+
+.drawflow .parent-node .drawflow-node.Conditional .output,
+.drawflow .parent-node .drawflow-node:not(.Value):not(.Operation) .output.output_1,
+.drawflow .parent-node .drawflow-node.Loop .output.output_2,
+.drawflow .parent-node .drawflow-node:not(.Operation) .input.input_1 {
   background-color: rgba(255, 255, 255, 0);
   border-radius: 0;
   border-left: 20px solid mediumorchid;
@@ -653,21 +655,37 @@ onMounted(() => {
   height: 0px;
 }
 
-.drawflow .parent-node .drawflow-node.Value .input.input_1 {
-  background-color: yellow;
-  border: 2px solid black;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-}
+/* Colors for value outputs */
 
 .drawflow .parent-node .drawflow-node .output {
   background-color: rgb(255, 167, 33);
 }
 
-.drawflow .parent-node .drawflow-node .output:hover {
+.drawflow .drawflow-node .output:hover {
   background-color: rgb(255, 194, 102);
 }
+
+/* Assignation node styling */
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_1,
+.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
+  top: -9px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_2,
+.drawflow .parent-node .drawflow-node.Assign .input.input_2 {
+  top: 10px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
+  left: -22px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_1 {
+  left: 8px
+}
+
+/* Operation node styling */
 
 .drawflow .drawflow-node.Operation .input {
   top: 34px;
@@ -677,14 +695,68 @@ onMounted(() => {
   top: 49px;
 }
 
+/* Value nodes styling */
+
 .drawflow .drawflow-node.Value .input,
 .drawflow .drawflow-node.Value .output{
   top: 22px;
 }
 
+/* If-else node styling */
+
+.drawflow .drawflow-node.Conditional .drawflow_content_node {
+  height: 182px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_1 {
+  top: -39px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_2{
+  top: -10px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_3{
+  top: 23px;
+}
+
+.drawflow .drawflow-node.Conditional .output {
+  top: 53px;
+}
+
+.drawflow .drawflow-node.Conditional .output.output_1 {
+  top: -43px;
+}
+
+/* For loop node styling */
+
+.drawflow .drawflow-node.Loop .drawflow_content_node {
+  height: 125px;
+}
+
+.drawflow .drawflow-node.Loop .input.input_1 {
+  top: -26px;
+  left: -26px;
+}
+
+.drawflow .drawflow-node.Loop .input {
+  top: 3px;
+}
+
+.drawflow .drawflow-node.Loop .output.output_1 {
+  top: -12px;
+}
+
 .drawflow .drawflow-node.Loop .output {
-  top: 42px;
-  right: -4px;
+  top: 31px;
+  right: -6px;
+}
+
+/* Miscellaneous nodes styling */
+
+.drawflow .drawflow-node.Misc .output {
+  top: -12px;
+  right: -8px;
 }
 
 </style>
