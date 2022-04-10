@@ -25,6 +25,7 @@
 
   #val {
     top: -1px;
+    width: 64px;
   }
 
   #out {

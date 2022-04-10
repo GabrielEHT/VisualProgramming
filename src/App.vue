@@ -4,9 +4,7 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
-// Crear "helpBox"
 const name = ref("")
-// cambiar "code" por "script" y viceversa
 const code = ref(null)
 const nameDiag = ref(null)
 const listDiag = ref(null)
@@ -27,7 +25,6 @@ var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
 
-// Añadir animación
 function showWarning(text) {
   warn.value.text = text
   warn.value.error = true
@@ -35,10 +32,8 @@ function showWarning(text) {
 }
 
 function showNameDialog() {
-  if (script) {
+  if (createScript()) {
     nameDiag.value.showModal()
-  } else {
-    showWarning('You don\'t have a script to save!')
   }
 }
 
@@ -49,42 +44,42 @@ function setName() {
 }
 
 function requestExecution() {
-  if (script) {
+  if (createScript()) {
     const http = new XMLHttpRequest()
     http.open('POST', 'http://localhost:8080/exec')
     http.addEventListener('load', () => {
       console.log(http.response)
     })
-    let wholeScript = ""
+    let wholeScript = ''
     for (let line of script) {
       wholeScript += line
     }
     http.send(JSON.stringify({data:wholeScript}))
-  } else {
-    showWarning('You don\'t have a script to execute!')
   }
 }
 
-function saveScript(newScript) {
-  const http = new XMLHttpRequest()
-  let data = {}
-  if (newScript) {
-    setName()
-    data.name = name.value.replaceAll(' ', '_')
-    http.open('POST', 'http://localhost:8080/users/Admin')
-  } else {
-    http.open('POST', 'http://localhost:8080/users/Admin/' + name.value.replaceAll(' ', '_'))    
+function saveScript(isNew) {
+  if (createScript()) {
+    const http = new XMLHttpRequest()
+    let data = {}
+    if (isNew) {
+      setName()
+      data.name = name.value.replaceAll(' ', '_')
+      http.open('POST', 'http://localhost:8080/users/Admin')
+    } else {
+      http.open('POST', 'http://localhost:8080/users/Admin/' + name.value.replaceAll(' ', '_'))    
+    }
+    data.list = JSON.stringify(nodeList) + '|'
+    let wholeScript = ''
+    for (let line of script) {
+      wholeScript += line + '|'
+    }
+    data.script = wholeScript.slice(0, -1)
+    data.nodes = JSON.stringify(editor.value.export()) + '|'
+    console.log(data)
+    http.addEventListener('load', () => {console.log(http.response)})
+    http.send(JSON.stringify(data))
   }
-  data.list = JSON.stringify(nodeList) + '|'
-  let wholeScript = ''
-  for (let line of script) {
-    wholeScript += line + '|'
-  }
-  data.script = wholeScript.slice(0, -1)
-  data.nodes = JSON.stringify(editor.value.export()) + '|'
-  console.log(data)
-  http.addEventListener('load', () => {console.log(http.response)})
-  http.send(JSON.stringify(data))
 }
 
 // hacer que muestre un mensaje cuando "scriptList" es null
@@ -101,7 +96,7 @@ function getScriptList() {
 function loadScript(scriptName) {
   listDiag.value.close()
   const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName.replaceAll(' ', '_')) // replaceAll redundante
+  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName)
   http.addEventListener('load', () => {
     const resp = JSON.parse(http.response)
     name.value = resp.name.replaceAll('_', ' ')
@@ -109,7 +104,7 @@ function loadScript(scriptName) {
     nodeList = JSON.parse(resp.nodeList.slice(0, -1))
     editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
     script = resp.code.split("|")
-    code.value.data = createScript(script)
+    createScript(script)
   })
   http.send()
 }
@@ -156,14 +151,19 @@ function checkNodes() {
     let rootCount = 0;
     for (let node of nodeList) {
       if (node.data.val == '' && node.class != 'Misc') {
-        if (node.class == 'Assign') {
-          message = 'There is an assignation node without name!'
-        } else if (node.class == 'Value') {
-          message = `There is a ${node.name.toLowerCase()} node without a value!`
-        } else if (node.class == 'Operation') {
-          message = 'You have to select a operation for all operation nodes!'
-        } else if (node.class == 'Conditional') {
-          message = 'You have to select a condition for all if-else nodes!'
+        switch (node.class) {
+          case 'Assign':
+            message = 'There is an assignation node without name!'
+            break
+          case 'Value':
+            message = `There is a ${node.name.toLowerCase()} node without a value!`
+            break
+          case 'Operation':
+            message = 'You have to select a operation for all operation nodes!'
+            break
+          case 'Conditional':
+            message = 'You have to select a condition for all if-else nodes!'
+            break
         }
         showWarning(message)
         return false
@@ -189,21 +189,19 @@ function checkNodes() {
   }
 }
 
-function renderCode() {
+function createScript() {
   if (checkNodes()) {
     let execTree = generateExecTree()
     console.log(execTree)
     script = generateCode(execTree)
     console.log(script)
-    code.value.data = createScript(script)
-    // generar codigo
+    let scriptBlob = new Blob(script, {type:"text/plain;charset=utf-8"})
+    let scriptUrl = window.URL.createObjectURL(scriptBlob)
+    code.value.data = scriptUrl
+    return true
+  } else {
+    return false
   }
-}
-
-function createScript(data) {
-  let scriptBlob = new Blob(data, {type:"text/plain;charset=utf-8"})
-  let scriptUrl = window.URL.createObjectURL(scriptBlob)
-  return scriptUrl
 }
 
 function resolveValueNodes(id) {
@@ -218,7 +216,7 @@ function resolveValueNodes(id) {
     case 'Operation':
       let a = resolveValueNodes(node.inputs.input_1.connections[0].node)
       let b = resolveValueNodes(node.inputs.input_2.connections[0].node)
-      result = a + ' ' + node.data.val + ' ' + b
+      result = `${a} ${node.data.val} ${b}`
       break
     default:
       console.log('Unknown class')
@@ -233,15 +231,15 @@ function generateCode(execTree, indentLevel) {
   }
   let spaces = ' '.repeat(indentLevel * 4)
   for (let line of execTree) {
-    if (line.hasOwnProperty('assign')) {
-      let node = editor.value.getNodeFromId(line.assign)
+    if (line.hasOwnProperty('assignation')) {
+      let node = editor.value.getNodeFromId(line.assignation)
       let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
-      codeText.push(spaces + node.data.val + ' = ' + result + '\n')
-    } else if (line.hasOwnProperty('if')) { // arreglar
+      codeText.push(spaces + `${node.data.val} = ${result}\n`)
+    } else if (line.hasOwnProperty('if')) {
       let node = editor.value.getNodeFromId(line.id)
       let a = resolveValueNodes(node.inputs.input_2.connections[0].node)
       let b = resolveValueNodes(node.inputs.input_3.connections[0].node)
-      codeText.push(spaces + 'if ' + a + ' ' + node.data.val + ' ' + b + ':\n')
+      codeText.push(spaces + `if ${a} ${node.data.val} ${b}:\n`)
       let ifBlock = generateCode(line['if'], indentLevel + 1)
       for (let indLine of ifBlock) {
         codeText.push(indLine)
@@ -256,7 +254,7 @@ function generateCode(execTree, indentLevel) {
     } else if (line.hasOwnProperty('for')) {
       let node = editor.value.getNodeFromId(line.id)
       let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
-      codeText.push(spaces + 'for i in range(' + result + '):\n')
+      codeText.push(spaces + `for i in range(${result}):\n`)
       let forBlock = generateCode(line['for'], indentLevel + 1)
       for (let indLine of forBlock) {
         codeText.push(indLine)
@@ -264,7 +262,7 @@ function generateCode(execTree, indentLevel) {
     } else if (line.hasOwnProperty('print')) {
       let node = editor.value.getNodeFromId(line.print)
       let result = resolveValueNodes(node.inputs.input_2.connections[0].node)
-      codeText.push(spaces + 'print(' + result + ')\n')
+      codeText.push(spaces + `print(${result})\n`)
     }
   }
   return codeText
@@ -279,24 +277,29 @@ function generateExecTree(rootNode, execTree) {
     console.log(rootNode)
   }
   let nextNode;
-  if (rootNode.class == 'Conditional') {
-    let conditional = {id:rootNode.id}
-    nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
-    conditional['if'] = generateExecTree(nextNode, [])
-    if (rootNode.outputs.output_3.connections.length > 0) {
-      nextNode = getNodeFromId(rootNode.outputs.output_3.connections[0].node);
-      conditional['else'] = generateExecTree(nextNode, [])
-    }
-    execTree.push(conditional)
-  } else if (rootNode.class == 'Loop') {
-    let loop = {id:rootNode.id}
-    nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
-    loop['for'] = generateExecTree(nextNode, [])
-    execTree.push(loop)
-  } else if (rootNode.class == 'Misc') {
-    execTree.push({'print':rootNode.id})
-  } else {
-    execTree.push({'assign':rootNode.id})
+  switch (rootNode.class) {
+    case 'Assign':
+    case 'Misc':
+      execTree.push({[rootNode.name.toLowerCase()]:rootNode.id})
+      break
+    case 'Conditional':
+      let conditional = {id:rootNode.id}
+      nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
+      conditional['if'] = generateExecTree(nextNode, [])
+      if (rootNode.outputs.output_3.connections.length > 0) {
+        nextNode = getNodeFromId(rootNode.outputs.output_3.connections[0].node);
+        conditional['else'] = generateExecTree(nextNode, [])
+      }
+      execTree.push(conditional)
+      break
+    case 'Loop':
+      let loop = {id:rootNode.id}
+      nextNode = getNodeFromId(rootNode.outputs.output_2.connections[0].node);
+      loop['for'] = generateExecTree(nextNode, [])
+      execTree.push(loop)
+      break
+   default:
+      console.log('Unknown class')
   }
   if (rootNode.outputs.output_1.connections.length > 0) {
     nextNode = getNodeFromId(rootNode.outputs.output_1.connections[0].node);
@@ -305,29 +308,17 @@ function generateExecTree(rootNode, execTree) {
   return execTree
 }
 
-// mover a otro módulo?
-async function sendData(data) {
-  const http = new XMLHttpRequest()
-  http.open('POST', 'http://localhost:8080/', true)
-  http.addEventListener('load', () => {
-    let r = http.response
-    if (typeof r == "string") {
-      console.log(r)
-    } else {
-      console.log(JSON.parse(r))
-    }
-  })
-  await http.send(JSON.stringify(data))
-}
-
 function addNode(data) {
   let vars = {}
-  if (data.class == 'Conditional') {
-    vars = {'val':'', 'con':''}
-  } else if (data.class == 'Loop') {
-    vars = {'val':'i'}
-  } else {
-    vars = {'val':''}
+  switch (data.class) {
+    case 'Conditional':
+      vars = {'val':'', 'con':''}
+      break
+    case 'Loop':
+      vars = {'val':'i'}
+      break
+    default:
+      vars = {'val':''}
   }
   editor.value.addNode(
     data.name,
@@ -352,21 +343,28 @@ onMounted(() => {
   for (let node of nodeData.value) {
     var comp;
     var props = {};
-    if (node.class == 'Assign') {
-      comp = components.assign
-    } else if (node.class == 'Operation') {
-      comp = components.operations
-    } else if (node.class == 'Value') {
-      comp = components.datatypes
-      props = {'type':node.type}
-    } else if (node.class == 'Conditional') {
-      comp = components.conditional
-    } else if (node.class == 'Loop') {
-      comp = components.loop
-    } else if (node.class == 'Misc') {
-      comp = components.misc
-    } else {
-      comp = components.datatypes
+    switch (node.class) {
+      case 'Assign':
+        comp = components.assign
+        break
+      case 'Operation':
+        comp = components.operations
+        break
+      case 'Value':
+        comp = components.datatypes
+        props = {'type':node.type}
+        break
+      case 'Conditional':
+        comp = components.conditional
+        break
+      case 'Loop':
+        comp = components.loop
+        break
+      case 'Misc':
+        comp = components.misc
+        break
+      default:
+        comp = components.datatypes
     }
     editor.value.registerNode(
       node.type,
@@ -483,7 +481,7 @@ onMounted(() => {
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
-      <button @click="renderCode()" id="generate">Generate script</button>
+      <button @click="createScript()" id="generate">Generate script</button>
       <button @click="requestExecution()" id="execute">Execute script</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
       <button @click="name==''? showNameDialog() : saveScript()" class="database" id="save">Save script</button>

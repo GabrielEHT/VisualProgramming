@@ -5,11 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
-	//"strings"
-	//"strconv"
 	"net/http"
 	"encoding/json"
-	//"google.golang.org/grpc"
 	"github.com/go-chi/chi/v5"
 	"github.com/dgraph-io/dgo/v210"
 	"github.com/go-chi/chi/v5/middleware"
@@ -44,7 +41,6 @@ func errorCheck(err error) {
 	}
 }
 
-// crear función para los errores
 func executeCode(w http.ResponseWriter, r *http.Request) {
 	var data map[string]string
 	err := json.NewDecoder(r.Body).Decode(&data)
