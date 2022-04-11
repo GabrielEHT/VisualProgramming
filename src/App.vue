@@ -5,11 +5,12 @@ import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
 const code = ref(null)
-const overwriteWarn = ref(null)
+const nameLabel = ref(null)
 const listDiag = ref(null)
 const scriptList = ref([])
 const editor = shallowRef({})
 const warn = ref({error:false})
+const overwriteWarn = ref(null)
 const nodeData = ref([
   {name:'Assignation', type:'assign', class:'Assign', in:2, out:2}, // flow input and output, value input and output
   {name:'Number', type:'num', class:'Value'}, // no inputs, value output
@@ -24,7 +25,6 @@ var name;
 var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
-const nameLabel = ref(null)
 
 function showWarning(text) {
   warn.value.text = text
@@ -52,6 +52,15 @@ function checkScrìpts() {
     }
   }
   return false
+}
+
+function newScript() {
+  name = null
+  nameLabel.value.value = 'Unsaved'
+  nodeList = []
+  editor.value.clear()
+  script = null
+  code.value.data = ""
 }
 
 function requestExecution() {
