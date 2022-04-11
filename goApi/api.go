@@ -4,6 +4,7 @@ import (
 	"os"
 	"fmt"
 	"log"
+	"strings"
 	"os/exec"
 	"net/http"
 	"encoding/json"
@@ -159,7 +160,7 @@ func getScript(w http.ResponseWriter, r *http.Request) {
 	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
 
 	vars := make(map[string]string)
-	vars["$st"] = chi.URLParam(r, "script")
+	vars["$st"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
 	vars["$usr"] = chi.URLParam(r, "user")
 	q := `
 		query St($usr: string, $st: string) {
@@ -197,7 +198,7 @@ func overwriteData(w http.ResponseWriter, r *http.Request) {
 
 	vars := make(map[string]string)
 	vars["$usr"] = chi.URLParam(r, "user")
-	vars["$st"] = chi.URLParam(r, "script")
+	vars["$st"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
 	q := `
 		query St($usr: string, $st: string) {
 			getUsrSt(func: eq(name, $usr)) {

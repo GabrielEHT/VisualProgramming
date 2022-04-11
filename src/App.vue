@@ -4,9 +4,8 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
-const name = ref("")
 const code = ref(null)
-const nameDiag = ref(null)
+const overwriteWarn = ref(null)
 const listDiag = ref(null)
 const scriptList = ref([])
 const editor = shallowRef({})
@@ -21,9 +20,11 @@ const nodeData = ref([
   {name:'Print', type:'misc', class:'Misc', in:2} // flow and value inputs, flow output
 ])
 var script;
+var name;
 var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
+const nameLabel = ref(null)
 
 function showWarning(text) {
   warn.value.text = text
@@ -31,20 +32,31 @@ function showWarning(text) {
   setTimeout(() => {warn.value.error = false}, 5000)
 }
 
-function showNameDialog() {
-  if (createScript()) {
-    nameDiag.value.showModal()
-  }
+function editName(mode) {
+  nameLabel.value.readOnly = false
 }
 
 function setName() {
-  let nameLabel = document.getElementById('script-name')
-  nameLabel.innerHTML = name.value
-  nameDiag.value.close()
+  if (nameLabel.value.value.toLowerCase() != 'unsaved') {
+    name = nameLabel.value.value
+  }
+  nameLabel.value.readOnly = true
+}
+
+function checkScrìpts() {
+  console.log(name)
+  for (let userScript of scriptList.value) {
+    console.log(userScript.name)
+    if (name == userScript.name) {
+      return true
+    }
+  }
+  return false
 }
 
 function requestExecution() {
-  if (createScript()) {
+  if (checkNodes()) {
+    createScript()
     const http = new XMLHttpRequest()
     http.open('POST', 'http://localhost:8080/exec')
     http.addEventListener('load', () => {
@@ -58,28 +70,56 @@ function requestExecution() {
   }
 }
 
-function saveScript(isNew) {
-  if (createScript()) {
-    const http = new XMLHttpRequest()
-    let data = {}
-    if (isNew) {
-      setName()
-      data.name = name.value.replaceAll(' ', '_')
-      http.open('POST', 'http://localhost:8080/users/Admin')
+function saveScript() {
+  if (checkNodes()) {
+    if (name) {
+      if (checkScrìpts()) {
+        overwriteWarn.value.showModal()
+      } else {
+        createScript()
+        const http = new XMLHttpRequest()
+        let data = {}
+        data.name = name
+        http.open('POST', 'http://localhost:8080/users/Admin')
+        data.list = JSON.stringify(nodeList) + '|'
+        let wholeScript = ''
+        for (let line of script) {
+          wholeScript += line + '|'
+        }
+        data.script = wholeScript.slice(0, -1)
+        data.nodes = JSON.stringify(editor.value.export()) + '|'
+        console.log(data)
+        http.addEventListener('load', () => {
+          console.log(http.response)
+          getScriptList()
+        })
+        http.send(JSON.stringify(data))
+      }
     } else {
-      http.open('POST', 'http://localhost:8080/users/Admin/' + name.value.replaceAll(' ', '_'))    
+      showWarning('You have to name your script!')
     }
-    data.list = JSON.stringify(nodeList) + '|'
-    let wholeScript = ''
-    for (let line of script) {
-      wholeScript += line + '|'
-    }
-    data.script = wholeScript.slice(0, -1)
-    data.nodes = JSON.stringify(editor.value.export()) + '|'
-    console.log(data)
-    http.addEventListener('load', () => {console.log(http.response)})
-    http.send(JSON.stringify(data))
   }
+}
+
+function overwriteScript() {
+  overwriteWarn.value.close()
+  createScript()
+  const http = new XMLHttpRequest()
+  let data = {}
+  http.open('POST', 'http://localhost:8080/users/Admin/' + name.replaceAll(' ', '_'))
+  data.list = JSON.stringify(nodeList) + '|'
+  let wholeScript = ''
+  for (let line of script) {
+    wholeScript += line + '|'
+  }
+  data.script = wholeScript.slice(0, -1)
+  data.nodes = JSON.stringify(editor.value.export()) + '|'
+  console.log(data)
+  http.addEventListener('load', () => {
+    console.log(http.response)
+    getScriptList()
+  })
+  http.send(JSON.stringify(data))
 }
 
 // hacer que muestre un mensaje cuando "scriptList" es null
@@ -88,7 +128,6 @@ function getScriptList() {
   http.open('GET', 'http://localhost:8080/users/Admin')
   http.addEventListener('load', () => {
     scriptList.value = JSON.parse(http.response)
-    listDiag.value.showModal()
   })
   http.send()
 }
@@ -96,11 +135,11 @@ function getScriptList() {
 function loadScript(scriptName) {
   listDiag.value.close()
   const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName)
+  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName.replaceAll(' ', '_'))
   http.addEventListener('load', () => {
     const resp = JSON.parse(http.response)
-    name.value = resp.name.replaceAll('_', ' ')
-    setName()
+    name = resp.name
+    nameLabel.value.value = name
     nodeList = JSON.parse(resp.nodeList.slice(0, -1))
     editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
     script = resp.code.split("|")
@@ -190,18 +229,13 @@ function checkNodes() {
 }
 
 function createScript() {
-  if (checkNodes()) {
-    let execTree = generateExecTree()
-    console.log(execTree)
-    script = generateCode(execTree)
-    console.log(script)
-    let scriptBlob = new Blob(script, {type:"text/plain;charset=utf-8"})
-    let scriptUrl = window.URL.createObjectURL(scriptBlob)
-    code.value.data = scriptUrl
-    return true
-  } else {
-    return false
-  }
+  let execTree = generateExecTree()
+  console.log(execTree)
+  script = generateCode(execTree)
+  console.log(script)
+  let scriptBlob = new Blob(script, {type:"text/plain;charset=utf-8"})
+  let scriptUrl = window.URL.createObjectURL(scriptBlob)
+  code.value.data = scriptUrl
 }
 
 function resolveValueNodes(id) {
@@ -334,6 +368,8 @@ function addNode(data) {
 }
 
 onMounted(() => {
+  getScriptList()
+
   // Initialices Drawflow
   let id = document.getElementById("drawflow");
   let Vue = { version: 3, h, render };
@@ -452,11 +488,11 @@ onMounted(() => {
         <p>{{warn.text}}</p>
       </dialog>
     </div>
-    <dialog ref="nameDiag">
-      <p>Enter a name</p>
-      <input type="text" placeholder="Name" v-model="name">
-      <button @click="nameDiag.close()">Cancel</button>
-      <button @click="saveScript(true)">Accept</button>
+    <dialog ref="overwriteWarn">
+      <h1>Warning!</h1>
+      <p>This script already exists, do you wish to overwrite it?</p>
+      <button @click="overwriteWarn.close()">Cancel</button>
+      <button @click="overwriteScript()">Accept</button>
     </dialog>
     <dialog ref="listDiag">
       <h1>Your scripts:</h1>
@@ -464,12 +500,12 @@ onMounted(() => {
       <div>
         <ul>
           <li v-for="userScript in scriptList">
-            <button @click="loadScript(userScript.name)">{{userScript.name.replaceAll('_', ' ')}}</button>
+            <button @click="loadScript(userScript.name)">{{userScript.name}}</button>
           </li>
         </ul>
       </div>
     </dialog>
-    <p id="script-name">Unsaved</p>
+    <input readonly id="script-name" ref="nameLabel" value="Unsaved" @dblclick="editName()" @focusout="setName()">
     <div class="left-panel">
       <h3>Nodes</h3>
       <ul>
@@ -477,15 +513,15 @@ onMounted(() => {
           <button @click="addNode(data)">{{data.name}}</button>
         </li>
       </ul>
-      <button @click="editor.clear()">Clear editor</button>
+      <button @click="newScript()">New script</button>
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
       <button @click="createScript()" id="generate">Generate script</button>
       <button @click="requestExecution()" id="execute">Execute script</button>
       <div id="list"><object ref="code" width=200 height=400></object></div>
-      <button @click="name==''? showNameDialog() : saveScript()" class="database" id="save">Save script</button>
-      <button @click="getScriptList()" class="database" id="load">Load script</button>
+      <button @click="saveScript()" class="database" id="save">Save script</button>
+      <button @click="listDiag.showModal()" class="database" id="load">Load script</button>
     </div>
   </div>
 </template>
@@ -534,6 +570,8 @@ onMounted(() => {
   position: absolute;
   left: 238px;
   top: 5px;
+  z-index: 1;
+  border: 0px;
 }
 
 .left-panel,
