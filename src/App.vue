@@ -69,7 +69,8 @@ function requestExecution() {
     const http = new XMLHttpRequest()
     http.open('POST', 'http://localhost:8080/exec')
     http.addEventListener('load', () => {
-      console.log(http.response)
+      stout = document.getElementById('stout')
+      stout.innerHTML = http.response
     })
     let wholeScript = ''
     for (let line of script) {
@@ -131,7 +132,6 @@ function overwriteScript() {
   http.send(JSON.stringify(data))
 }
 
-// hacer que muestre un mensaje cuando "scriptList" es null
 function getScriptList() {
   const http = new XMLHttpRequest()
   http.open('GET', 'http://localhost:8080/users/Admin')
@@ -553,7 +553,10 @@ onMounted(() => {
     <div class="right-panel">
       <button @click="createScript()" id="generate">Generate script</button>
       <button @click="requestExecution()" id="execute">Execute script</button>
-      <div id="list"><object ref="code" width=200 height=400></object></div>
+      <div id="code">
+        <object ref="code"></object>
+      </div>
+      <textarea id="stout" readonly>Waiting script execution...</textarea>
       <button @click="saveScript()" class="database" id="save">Save script</button>
       <button @click="listDiag.showModal()" class="database" id="load">Load script</button>
     </div>
@@ -669,7 +672,7 @@ onMounted(() => {
 
 #execute {
   top: 15px;
-  right: -48px;
+  right: -28px;
 }
 
 #save {
@@ -685,13 +688,28 @@ onMounted(() => {
   top: 30px;
 }
 
-#list object {
-  font: Arial;
-  font-size: 14px;
+#code {
+  height: 400px;
   background-color: white;
-  width: 97%;
-  height: 512px;
-  margin-left: 4px;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+#code object {
+  font-size: 14px;
+  background-color: transparent;
+  width: 100%;
+  height: 100%;
+}
+
+#stout {
+  position: relative;
+  bottom: -37px;
+  margin-left: 5px;
+  margin-right: 5px;
+  resize: none;
+  width: 93%;
+  height: 91px;
 }
 
 </style>

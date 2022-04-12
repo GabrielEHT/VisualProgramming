@@ -62,7 +62,7 @@ func executeCode(w http.ResponseWriter, r *http.Request) {
 	if resultStr == "" {
 		fmt.Fprint(w, "Code executed without errors")
 	} else {
-		fmt.Fprintf(w, "%s", result)
+		fmt.Fprintf(w, "%s\nCode executed without errors", result)
 	}
 }
 
