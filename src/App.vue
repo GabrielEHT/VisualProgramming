@@ -136,7 +136,23 @@ function getScriptList() {
   const http = new XMLHttpRequest()
   http.open('GET', 'http://localhost:8080/users/Admin')
   http.addEventListener('load', () => {
-    scriptList.value = JSON.parse(http.response)
+    if (scriptList.value.err) {
+      showWarning('Successfully connected to the server')
+      clearInterval(scriptList.value.id)
+      scriptList.value = []
+    }
+    if (http.response != "empty") {
+      scriptList.value = JSON.parse(http.response)
+    }
+  })
+  http.addEventListener('error', () => {
+    showWarning('Server error, wait a moment or reload the page')
+    if (scriptList.value.err == undefined) {
+      scriptList.value = {
+        err:true,
+        id:setInterval(getScriptList, '15000')
+      }
+    }
   })
   http.send()
 }
@@ -504,14 +520,23 @@ onMounted(() => {
       <button @click="overwriteScript()">Accept</button>
     </dialog>
     <dialog ref="listDiag">
-      <h1>Your scripts:</h1>
       <button @click="listDiag.close()">X</button>
-      <div>
-        <ul>
-          <li v-for="userScript in scriptList">
-            <button @click="loadScript(userScript.name)">{{userScript.name}}</button>
-          </li>
-        </ul>
+      <div v-if="scriptList.err">
+        <h1>Server error...</h1>
+        <p>Could't get your scripts list</p>
+      </div>
+      <div v-else>
+        <h1>Your scripts:</h1>
+        <div v-if="scriptList.length == 0">
+          <p>You don't have scripts</p>
+        </div>
+        <div v-else>
+          <ul>
+            <li v-for="userScript in scriptList">
+              <button @click="loadScript(userScript.name)">{{userScript.name}}</button>
+            </li>
+          </ul>
+        </div>
       </div>
     </dialog>
     <input readonly id="script-name" ref="nameLabel" value="Unsaved" @dblclick="editName()" @focusout="setName()">

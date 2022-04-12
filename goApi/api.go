@@ -148,8 +148,12 @@ func getScriptList(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(response.Json, &jsonResp)
 	errorCheck(err)
 
-	err = json.NewEncoder(w).Encode(jsonResp["getUsr"][0]["scripts"])
-	errorCheck(err)
+	if len(jsonResp["getUsr"]) == 0 {
+		fmt.Fprint(w, "empty")
+	} else {
+		err = json.NewEncoder(w).Encode(jsonResp["getUsr"][0]["scripts"])
+		errorCheck(err)
+	}
 }
 
 func getScript(w http.ResponseWriter, r *http.Request) {
