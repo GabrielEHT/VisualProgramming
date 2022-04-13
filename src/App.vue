@@ -71,11 +71,20 @@ function newScript() {
 function requestExecution() {
   if (checkNodes()) {
     createScript()
+    let stout = document.getElementById('stout')
     const http = new XMLHttpRequest()
     http.open('POST', 'http://localhost:8080/exec')
-    http.addEventListener('load', () => {
-      stout = document.getElementById('stout')
-      stout.innerHTML = http.response
+    http.addEventListener('loadstart', () => {
+      stout.innerHTML = 'Executing...'
+    })
+    http.addEventListener('loadend', () => {
+      if (http.response) {
+        stout.innerHTML = http.response
+      }
+    })
+    http.addEventListener('error', () => {
+      stout.innerHTML = 'Server error...'
+      showAlert('Server error, couldn\'t execute the script')
     })
     let wholeScript = ''
     for (let line of script) {
@@ -103,10 +112,16 @@ function saveScript() {
         }
         data.script = wholeScript.slice(0, -1)
         data.nodes = JSON.stringify(editor.value.export()) + '|'
-        console.log(data)
-        http.addEventListener('load', () => {
+        http.addEventListener('loadstart', () => {
+          showAlert('Saving the script...', 'green')
+        })
+        http.addEventListener('loadend', () => {
           console.log(http.response)
+          showAlert('Script successfully saved', 'green')
           getScriptList()
+        })
+        http.addEventListener('error', () => {
+          showAlert('Server error, couldn\'t save the script')
         })
         http.send(JSON.stringify(data))
       }
@@ -130,9 +145,16 @@ function overwriteScript() {
   data.script = wholeScript.slice(0, -1)
   data.nodes = JSON.stringify(editor.value.export()) + '|'
   console.log(data)
-  http.addEventListener('load', () => {
+  http.addEventListener('loadstart', () => {
+    showAlert('Overwritting script...', 'green')
+  })
+  http.addEventListener('loadend', () => {
     console.log(http.response)
+    showAlert('Script successfully overwritted', 'green')
     getScriptList()
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, couldn\'t overwrite the script')
   })
   http.send(JSON.stringify(data))
 }
@@ -168,14 +190,23 @@ function loadScript(sc) {
   listDiag.value.close()
   const http = new XMLHttpRequest()
   http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_'))
-  http.addEventListener('load', () => {
-    const resp = JSON.parse(http.response)
-    name = resp.name
-    nameLabel.value.value = name
-    nodeList = JSON.parse(resp.nodeList.slice(0, -1))
-    editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
-    script = resp.code.split("|")
-    createScript(script)
+  http.addEventListener('loadstart', () => {
+    showAlert('Loading your script...', 'green')
+  })
+  http.addEventListener('loadend', () => {
+    if (http.response) {
+      const resp = JSON.parse(http.response)
+      name = resp.name
+      nameLabel.value.value = name
+      nodeList = JSON.parse(resp.nodeList.slice(0, -1))
+      editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
+      script = resp.code.split("|")
+      createScript(script)
+      showAlert('Script successfully loaded', 'green')
+    }
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, couldn\'t load your script')
   })
   http.send()
 }
