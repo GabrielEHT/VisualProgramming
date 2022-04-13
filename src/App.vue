@@ -5,20 +5,23 @@ import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
 const code = ref(null)
-const nameLabel = ref(null)
 const listDiag = ref(null)
+const nameLabel = ref(null)
 const scriptList = ref([])
-const editor = shallowRef({})
-const alertUsr = ref({error:false, background:'blue',colors:['rgba(83, 245, 142, 0.96)', 'rgba(72, 212, 163, 0.83)']})
 const overwriteWarn = ref(null)
+const editor = shallowRef({})
+const alertUsr = ref({
+  error:false,
+  background:'blue',colors:['rgba(83, 245, 142, 0.96)', 'rgba(72, 212, 163, 0.83)']
+})
 const nodeData = ref([
-  {name:'Assignation', type:'assign', class:'Assign', in:2, out:2}, // flow input and output, value input and output
-  {name:'Number', type:'num', class:'Value'}, // no inputs, value output
-  {name:'Variable', type:'var', class:'Value'}, // no inputs, value output
-  {name:'Operation', type:'operations', class:'Operation', in:2}, // two value inputs, value output
-  {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3}, // flow input, two value inputs and three flow outputs
-  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:3}, // flow input, value input, value output and two flow outputs
-  {name:'Print', type:'misc', class:'Misc', in:2} // flow and value inputs, flow output
+  {name:'Assignation', type:'assign', class:'Assign', in:2, out:2},
+  {name:'Number', type:'num', class:'Value'},
+  {name:'Variable', type:'var', class:'Value'},
+  {name:'Operation', type:'operations', class:'Operation', in:2},
+  {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3},
+  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:3},
+  {name:'Print', type:'misc', class:'Misc', in:2}
 ])
 var script;
 var name;
@@ -94,6 +97,58 @@ function requestExecution() {
   }
 }
 
+function getScriptList() {
+  const http = new XMLHttpRequest()
+  http.open('GET', 'http://localhost:8080/users/Admin')
+  http.addEventListener('load', () => {
+    if (scriptList.value.err) {
+      showAlert('Successfully connected to the server', 'green')
+      clearInterval(scriptList.value.id)
+      scriptList.value = []
+    }
+    if (http.response != "empty") {
+      scriptList.value = JSON.parse(http.response)
+    } else {
+      scriptList.value = []
+    }
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, wait a moment or reload the page')
+    if (scriptList.value.err == undefined) {
+      scriptList.value = {
+        err:true,
+        id:setInterval(getScriptList, '15000')
+      }
+    }
+  })
+  http.send()
+}
+
+function loadScript(sc) {
+  listDiag.value.close()
+  const http = new XMLHttpRequest()
+  http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_'))
+  http.addEventListener('loadstart', () => {
+    showAlert('Loading your script...', 'green')
+  })
+  http.addEventListener('loadend', () => {
+    if (http.response) {
+      const resp = JSON.parse(http.response)
+      name = resp.name
+      nameLabel.value.value = name
+      nodeList = JSON.parse(resp.nodeList.slice(0, -1))
+      editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
+      script = resp.code.split("|")
+      createScript(script)
+      showAlert('Script successfully loaded', 'green')
+    }
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, couldn\'t load your script')
+  })
+  http.send()
+}
+
 function saveScript() {
   if (checkNodes()) {
     if (name) {
@@ -150,65 +205,13 @@ function overwriteScript() {
   })
   http.addEventListener('loadend', () => {
     console.log(http.response)
-    showAlert('Script successfully overwritted', 'green')
+    showAlert('Script successfully overwritten', 'green')
     getScriptList()
   })
   http.addEventListener('error', () => {
     showAlert('Server error, couldn\'t overwrite the script')
   })
   http.send(JSON.stringify(data))
-}
-
-function getScriptList() {
-  const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin')
-  http.addEventListener('load', () => {
-    if (scriptList.value.err) {
-      showAlert('Successfully connected to the server', 'green')
-      clearInterval(scriptList.value.id)
-      scriptList.value = []
-    }
-    if (http.response != "empty") {
-      scriptList.value = JSON.parse(http.response)
-    } else {
-      scriptList.value = []
-    }
-  })
-  http.addEventListener('error', () => {
-    showAlert('Server error, wait a moment or reload the page')
-    if (scriptList.value.err == undefined) {
-      scriptList.value = {
-        err:true,
-        id:setInterval(getScriptList, '15000')
-      }
-    }
-  })
-  http.send()
-}
-
-function loadScript(sc) {
-  listDiag.value.close()
-  const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_'))
-  http.addEventListener('loadstart', () => {
-    showAlert('Loading your script...', 'green')
-  })
-  http.addEventListener('loadend', () => {
-    if (http.response) {
-      const resp = JSON.parse(http.response)
-      name = resp.name
-      nameLabel.value.value = name
-      nodeList = JSON.parse(resp.nodeList.slice(0, -1))
-      editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
-      script = resp.code.split("|")
-      createScript(script)
-      showAlert('Script successfully loaded', 'green')
-    }
-  })
-  http.addEventListener('error', () => {
-    showAlert('Server error, couldn\'t load your script')
-  })
-  http.send()
 }
 
 function deleteScript(sc, i) {
@@ -320,7 +323,6 @@ function createScript() {
   let execTree = generateExecTree()
   console.log(execTree)
   script = generateCode(execTree)
-  console.log(script)
   let scriptBlob = new Blob(script, {type:"text/plain;charset=utf-8"})
   let scriptUrl = window.URL.createObjectURL(scriptBlob)
   code.value.data = scriptUrl
@@ -571,17 +573,20 @@ onMounted(() => {
 
 <template>
   <div class="box">
+
     <div v-if="alertUsr.error">
       <dialog open id="alert-box" :style="{ 'background-color': alertUsr.colors[0], 'border-color': alertUsr.colors[1] }">
         <p>{{alertUsr.text}}</p>
       </dialog>
     </div>
+
     <dialog ref="overwriteWarn">
       <h1>Warning!</h1>
       <p>This script already exists, do you wish to overwrite it?</p>
       <button @click="overwriteWarn.close()">Cancel</button>
       <button @click="overwriteScript()">Accept</button>
     </dialog>
+
     <dialog ref="listDiag" id="script-list">
       <button @click="listDiag.close()" id="close-list">Close</button>
       <div v-if="scriptList.err">
@@ -604,7 +609,9 @@ onMounted(() => {
         </div>
       </div>
     </dialog>
+
     <input readonly id="script-name" ref="nameLabel" value="Unsaved" @dblclick="editName()" @focusout="setName()">
+
     <div class="left-panel">
       <h3>Nodes</h3>
       <ul>
@@ -614,7 +621,9 @@ onMounted(() => {
       </ul>
       <button @click="newScript()" id="reset">New script</button>
     </div>
+
     <div id="drawflow"></div>
+
     <div class="right-panel">
       <button @click="requestExecution()" id="execute">Execute script</button>
       <div id="code">
@@ -624,6 +633,7 @@ onMounted(() => {
       <button @click="saveScript()" class="database" id="save">Save script</button>
       <button @click="listDiag.showModal()" class="database" id="load">Load script</button>
     </div>
+
   </div>
 </template>
 

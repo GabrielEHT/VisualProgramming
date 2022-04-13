@@ -42,7 +42,7 @@ func errorCheck(err error) {
 	}
 }
 
-func executeCode(w http.ResponseWriter, r *http.Request) {
+func executeScript(w http.ResponseWriter, r *http.Request) {
 	var data map[string]string
 	err := json.NewDecoder(r.Body).Decode(&data)
 	errorCheck(err)
@@ -66,7 +66,7 @@ func executeCode(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func saveData(w http.ResponseWriter, r *http.Request) {
+func saveScript(w http.ResponseWriter, r *http.Request) {
 	var data map[string]string
 	err := json.NewDecoder(r.Body).Decode(&data)
 	errorCheck(err)
@@ -189,7 +189,7 @@ func getScript(w http.ResponseWriter, r *http.Request) {
 	errorCheck(err)
 }
 
-func overwriteData(w http.ResponseWriter, r *http.Request) {
+func overwriteScript(w http.ResponseWriter, r *http.Request) {
 	var data map[string]string
 	err := json.NewDecoder(r.Body).Decode(&data)
 	errorCheck(err)
@@ -290,13 +290,13 @@ func main() {
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.SetHeader("Access-Control-Allow-Origin", "*"))
 	router.Get("/", checkStatus)
-	router.Post("/exec", executeCode) // cambiar a PUT
+	router.Post("/exec", executeScript) // cambiar a PUT
 	router.Route("/users", func(router chi.Router) {
 		router.Get("/{user}", getScriptList)
-		router.Post("/{user}", saveData)
+		router.Post("/{user}", saveScript)
 		router.Route("/{user}/{script}", func (router chi.Router) {
 			router.Get("/", getScript)
-			router.Post("/", overwriteData) // cambiar a PUT
+			router.Post("/", overwriteScript) // cambiar a PUT
 			router.Get("/delete", deleteScript)
 		})
 	})
