@@ -9,7 +9,7 @@ const nameLabel = ref(null)
 const listDiag = ref(null)
 const scriptList = ref([])
 const editor = shallowRef({})
-const warn = ref({error:false})
+const alertUsr = ref({error:false, background:'blue',colors:['rgba(83, 245, 142, 0.96)', 'rgba(72, 212, 163, 0.83)']})
 const overwriteWarn = ref(null)
 const nodeData = ref([
   {name:'Assignation', type:'assign', class:'Assign', in:2, out:2}, // flow input and output, value input and output
@@ -26,10 +26,15 @@ var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
 
-function showWarning(text) {
-  warn.value.text = text
-  warn.value.error = true
-  setTimeout(() => {warn.value.error = false}, 5000)
+function showAlert(text, color) {
+  if (color == 'green') {
+    alertUsr.value.colors = ['rgba(83, 245, 142, 0.96)', 'rgba(72, 212, 163, 0.83)']
+  } else {
+    alertUsr.value.colors = ['rgba(245, 83, 83, 0.96)', 'rgba(212, 72, 72, 0.83)']
+  }
+  alertUsr.value.text = text
+  alertUsr.value.error = true
+  setTimeout(() => {alertUsr.value.error = false}, 5000)
 }
 
 function editName(mode) {
@@ -106,7 +111,7 @@ function saveScript() {
         http.send(JSON.stringify(data))
       }
     } else {
-      showWarning('You have to name your script!')
+      showAlert('You have to name your script!')
     }
   }
 }
@@ -137,7 +142,7 @@ function getScriptList() {
   http.open('GET', 'http://localhost:8080/users/Admin')
   http.addEventListener('load', () => {
     if (scriptList.value.err) {
-      showWarning('Successfully connected to the server')
+      showAlert('Successfully connected to the server', 'green')
       clearInterval(scriptList.value.id)
       scriptList.value = []
     }
@@ -148,7 +153,7 @@ function getScriptList() {
     }
   })
   http.addEventListener('error', () => {
-    showWarning('Server error, wait a moment or reload the page')
+    showAlert('Server error, wait a moment or reload the page')
     if (scriptList.value.err == undefined) {
       scriptList.value = {
         err:true,
@@ -194,7 +199,7 @@ function deleteScript(sc, i) {
       getScriptList()
     })
     http.addEventListener('error', () => {
-      showWarning('Server error, couldn\'t delete the script')
+      showAlert('Server error, couldn\'t delete the script')
     })
     http.send()
   }
@@ -256,17 +261,17 @@ function checkNodes() {
             message = 'You have to select a condition for all if-else nodes!'
             break
         }
-        showWarning(message)
+        showAlert(message)
         return false
       } else if (node.inputs.input_2 && node.inputs.input_2.connections.length == 0) {
-        showWarning('You have unconnected nodes!')
+        showAlert('You have unconnected nodes!')
         return false
       } else if (node.inputs.input_3 && node.inputs.input_3.connections.length == 0) {
-        showWarning('You have unconnected nodes!')
+        showAlert('You have unconnected nodes!')
         return false
       } else if (node.inputs.input_1 && node.inputs.input_1.connections.length == 0) {
         if (rootCount) {
-          showWarning('Too many root nodes') // mejorar
+          showAlert('Too many root nodes') // mejorar
           return false
         } else {
           rootCount++
@@ -275,7 +280,7 @@ function checkNodes() {
     }
     return true
   } else {
-    showWarning('You haven\'t created any nodes!');
+    showAlert('You haven\'t created any nodes!');
     return false
   }
 }
@@ -512,12 +517,12 @@ onMounted(() => {
     if (output_type == 'value') {
       if (input_type == 'flow') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        showWarning('You can\'t connect a value output to a flow input!')
+        showAlert('You can\'t connect a value output to a flow input!')
       }
     } else {
       if (input_type == 'value') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        showWarning('You can\'t connect a flow output to a value input!')
+        showAlert('You can\'t connect a flow output to a value input!')
       }
     }
   })
@@ -535,9 +540,9 @@ onMounted(() => {
 
 <template>
   <div class="box">
-    <div v-if="warn.error">
-      <dialog open id="warn-box">
-        <p>{{warn.text}}</p>
+    <div v-if="alertUsr.error">
+      <dialog open id="alert-box" :style="{ 'background-color': alertUsr.colors[0], 'border-color': alertUsr.colors[1] }">
+        <p>{{alertUsr.text}}</p>
       </dialog>
     </div>
     <dialog ref="overwriteWarn">
@@ -603,12 +608,11 @@ onMounted(() => {
   top: 0px;
 }
 
-#warn-box {
+#alert-box {
   top: -15px;
-  border: 3px solid rgba(72, 212, 163, 0.83);
+  border: 3px solid;
   border-radius: 20px;
   z-index: 1;
-  background-color: rgba(83, 245, 142, 0.96);
   animation-name: slideIn, slideOut;
   animation-duration: 1s, 1s;
   animation-delay: 0s, 4s;
