@@ -45,9 +45,9 @@ function setName() {
 
 function checkScrìpts() {
   console.log(name)
-  for (let userScript of scriptList.value) {
-    console.log(userScript.name)
-    if (name == userScript.name) {
+  for (let sc of scriptList.value) {
+    console.log(sc.name)
+    if (name == sc.name) {
       return true
     }
   }
@@ -143,6 +143,8 @@ function getScriptList() {
     }
     if (http.response != "empty") {
       scriptList.value = JSON.parse(http.response)
+    } else {
+      scriptList.value = []
     }
   })
   http.addEventListener('error', () => {
@@ -157,10 +159,10 @@ function getScriptList() {
   http.send()
 }
 
-function loadScript(scriptName) {
+function loadScript(sc) {
   listDiag.value.close()
   const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName.replaceAll(' ', '_'))
+  http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_'))
   http.addEventListener('load', () => {
     const resp = JSON.parse(http.response)
     name = resp.name
@@ -171,6 +173,31 @@ function loadScript(scriptName) {
     createScript(script)
   })
   http.send()
+}
+
+function deleteScript(sc, i) {
+  let buttons = document.getElementsByClassName('delete-script')
+  if (sc == 'cancel') {
+    buttons[i].style['background-color'] = ''
+  } else if (buttons[i].style['background-color'] == '') {
+    buttons[i].style['background-color'] = 'red'
+  } else {
+    const http = new XMLHttpRequest()
+    http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_') + '/delete')
+    http.addEventListener('loadstart', () => {
+      buttons[i].innerHTML = 'Deleting...'
+    })
+    http.addEventListener('loadend', () => {
+      console.log(http.response)
+      buttons[i].innerHTML = 'Delete'
+      buttons[i].style['background-color'] = ''
+      getScriptList()
+    })
+    http.addEventListener('error', () => {
+      showWarning('Server error, couldn\'t delete the script')
+    })
+    http.send()
+  }
 }
 
 function getRootNode() {
@@ -519,8 +546,8 @@ onMounted(() => {
       <button @click="overwriteWarn.close()">Cancel</button>
       <button @click="overwriteScript()">Accept</button>
     </dialog>
-    <dialog ref="listDiag">
-      <button @click="listDiag.close()">X</button>
+    <dialog ref="listDiag" id="script-list">
+      <button @click="listDiag.close()" id="close-list">Close</button>
       <div v-if="scriptList.err">
         <h1>Server error...</h1>
         <p>Could't get your scripts list</p>
@@ -532,8 +559,10 @@ onMounted(() => {
         </div>
         <div v-else>
           <ul>
-            <li v-for="userScript in scriptList">
-              <button @click="loadScript(userScript.name)">{{userScript.name}}</button>
+            <li v-for="(sc, i) in scriptList">
+              <p>{{sc.name}}</p>
+              <button @click="loadScript(sc.name)" class="load-script">Load</button>
+              <button @click="deleteScript(sc.name, i)" @focusout="deleteScript('cancel', i)" class="delete-script">Delete</button>
             </li>
           </ul>
         </div>
@@ -603,6 +632,27 @@ onMounted(() => {
   }
 }
 
+#script-list #close-list {
+  position: relative;
+  left: 146px;
+}
+
+#script-list ul {
+  list-style-type: none;
+  padding-left: 2px;
+}
+
+#script-list li {
+  display: flex;
+  align-items: center;
+  height: 30px;
+}
+
+#script-list .load-script {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
 #script-name {
   position: absolute;
   left: 240px;
@@ -610,6 +660,7 @@ onMounted(() => {
   z-index: 1;
   border: 0px;
   font-size: medium;
+  background-color: transparent;
 }
 
 .left-panel,

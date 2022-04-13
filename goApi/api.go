@@ -164,12 +164,12 @@ func getScript(w http.ResponseWriter, r *http.Request) {
 	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
 
 	vars := make(map[string]string)
-	vars["$st"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
+	vars["$sc"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
 	vars["$usr"] = chi.URLParam(r, "user")
 	q := `
-		query St($usr: string, $st: string) {
-			getSt(func: eq(name, $usr)) {
-				scripts @filter(eq(name, $st)){
+		query Sc($usr: string, $sc: string) {
+			getSc(func: eq(name, $usr)) {
+				scripts @filter(eq(name, $sc)){
 					name
 					code
 					nodeList
@@ -185,7 +185,7 @@ func getScript(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(response.Json, &jsonResp)
 	errorCheck(err)
 
-	err = json.NewEncoder(w).Encode(jsonResp["getSt"][0]["scripts"][0])
+	err = json.NewEncoder(w).Encode(jsonResp["getSc"][0]["scripts"][0])
 	errorCheck(err)
 }
 
@@ -202,11 +202,11 @@ func overwriteData(w http.ResponseWriter, r *http.Request) {
 
 	vars := make(map[string]string)
 	vars["$usr"] = chi.URLParam(r, "user")
-	vars["$st"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
+	vars["$sc"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
 	q := `
-		query St($usr: string, $st: string) {
-			getUsrSt(func: eq(name, $usr)) {
-				scripts @filter(eq(name, $st)) {
+		query Sc($usr: string, $sc: string) {
+			getUsrSc(func: eq(name, $usr)) {
+				scripts @filter(eq(name, $sc)) {
 					uid
 				}
 			}
@@ -219,7 +219,7 @@ func overwriteData(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(response.Json, &jsonResp)
 	errorCheck(err)
 
-	uid := jsonResp["getUsrSt"][0]["scripts"][0]["uid"]
+	uid := jsonResp["getUsrSc"][0]["scripts"][0]["uid"]
 	md := Script{
 		Uid:uid,
 		Code:data["script"],
@@ -240,6 +240,50 @@ func overwriteData(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, result.Metrics)
 }
 
+func deleteScript(w http.ResponseWriter, r *http.Request){
+	c, err := dgo.DialCloud("https://blue-surf-580096.us-east-1.aws.cloud.dgraph.io/graphql", "ZjAyNGJhZTc4ZmIxMTVkNTM1NmQ3OGQ1YzRkMjAyNDQ=")
+	errorCheck(err)
+	defer c.Close()
+
+	client := dgo.NewDgraphClient(api.NewDgraphClient(c))
+
+	vars := make(map[string]string)
+	vars["$usr"] = chi.URLParam(r, "user")
+	vars["$sc"] = strings.ReplaceAll(chi.URLParam(r, "script"), "_", " ")
+	q := `
+		query Sc($usr: string, $sc: string) {
+			getUsrSc(func: eq(name, $usr)) {
+				uid
+				scripts @filter(eq(name, $sc)) {
+					uid
+				}
+			}
+		}
+	`
+	response,err := client.NewReadOnlyTxn().QueryWithVars(r.Context(), q, vars)
+	errorCheck(err)
+
+	var jsonResp map[string][]map[string]interface{}
+	err = json.Unmarshal(response.Json, &jsonResp)
+	errorCheck(err)
+
+	usr := jsonResp["getUsrSc"][0]["uid"].(string)
+	uid := jsonResp["getUsrSc"][0]["scripts"].([]interface{})[0].(map[string]interface{})["uid"].(string)
+	d := map[string]interface{}{"uid":usr,"scripts":map[string]string{"uid":uid}}
+	dj, err := json.Marshal(d)
+	errorCheck(err)
+
+	m := &api.Mutation{
+		CommitNow: true,
+		DeleteJson: dj,
+	}
+
+	result, err := client.NewTxn().Mutate(r.Context(), m)
+	errorCheck(err)
+
+	fmt.Fprintf(w, "Status: deleted\nData: %v", result.Metrics)
+}
+
 func main() {
 	router := chi.NewRouter()
 	router.Use(middleware.Logger)
@@ -253,6 +297,7 @@ func main() {
 		router.Route("/{user}/{script}", func (router chi.Router) {
 			router.Get("/", getScript)
 			router.Post("/", overwriteData) // cambiar a PUT
+			router.Get("/delete", deleteScript)
 		})
 	})
 	log.Fatal(http.ListenAndServe(":8080", router))
