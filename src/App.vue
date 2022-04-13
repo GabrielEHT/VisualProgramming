@@ -547,11 +547,10 @@ onMounted(() => {
           <button @click="addNode(data)">{{data.name}}</button>
         </li>
       </ul>
-      <button @click="newScript()">New script</button>
+      <button @click="newScript()" id="reset">New script</button>
     </div>
     <div id="drawflow"></div>
     <div class="right-panel">
-      <button @click="createScript()" id="generate">Generate script</button>
       <button @click="requestExecution()" id="execute">Execute script</button>
       <div id="code">
         <object ref="code"></object>
@@ -566,6 +565,7 @@ onMounted(() => {
 <style scoped>
 
 .box {
+  font-family: Arial, Helvetica, sans-serif;
   position: absolute;
   display: flex;
   height: 100%;
@@ -605,10 +605,11 @@ onMounted(() => {
 
 #script-name {
   position: absolute;
-  left: 238px;
-  top: 5px;
+  left: 240px;
+  top: 14px;
   z-index: 1;
   border: 0px;
+  font-size: medium;
 }
 
 .left-panel,
@@ -619,14 +620,8 @@ onMounted(() => {
 
 .left-panel {
   width: 25%;
-  top: 0px;
-  left: 0px;
   padding-left: 15px;
-}
-
-.left-panel * {
   font-size: medium;
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 .left-panel h3 {
@@ -641,6 +636,21 @@ onMounted(() => {
 
 .left-panel ul {
   list-style-type: none;
+  padding-left: 0px;
+  margin-right: 14px;
+}
+
+.left-panel ul button {
+  margin-bottom: 10px;
+  width: 100%;
+  height: 40px;
+}
+
+#reset {
+  position: relative;
+  top: 126px;
+  width: 202px;
+  height: 30px;
 }
 
 #drawflow {
@@ -661,26 +671,22 @@ onMounted(() => {
 }
 
 .right-panel .database {
-  position: absolute;
-  bottom: 0px;
-}
-
-#generate{
-  left: 5px;
-  top: 15px;
+  bottom: -44px;
+  width: 120px;
 }
 
 #execute {
   top: 15px;
-  right: -28px;
+  right: -5px;
+  width: 97%;
 }
 
 #save {
-  right: 170px;
+  left: 5px;
 }
 
 #load {
-  right: 5px;
+  right: -13px;
 }
 
 .right-panel div {
