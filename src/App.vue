@@ -530,6 +530,7 @@ onMounted(() => {
 
   // Checks if the created connection is valid
   editor.value.on('connectionCreated', (data) => {
+    updateNodeData()
     let input = getNodeFromId(data.input_id);
     let output = getNodeFromId(data.output_id);
     let output_type = 'value';
@@ -547,15 +548,21 @@ onMounted(() => {
       }
     }
 
-    if (output_type == 'value') {
+    if (input.inputs[data.input_class].connections.length > 1) {
+      editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+      showAlert('That input is already occupied')
+    } else if (output_type == 'value') {
       if (input_type == 'flow') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         showAlert('You can\'t connect a value output to a flow input!')
       }
-    } else {
+    } else if (output_type == 'flow') {
       if (input_type == 'value') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
         showAlert('You can\'t connect a flow output to a value input!')
+      } else if (output.outputs[data.output_class].connections.length > 1) {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        showAlert('That flow output already has a connection')        
       }
     }
   })
