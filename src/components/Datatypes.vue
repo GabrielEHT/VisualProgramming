@@ -27,7 +27,7 @@
     <input v-model="num" type="text" placeholder="Number" @input="onlyNums" maxlength="20" df-val>
   </div>
   <div v-else-if="props.type=='var'">
-    <h1>Variable</h1>
+    <h1>Variable call</h1>
     <input v-model="varname" type="text" placeholder="Variable name" maxlength="20" df-val>
   </div>
   <div v-else>

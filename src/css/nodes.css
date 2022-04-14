@@ -1,0 +1,130 @@
+/* Nodes colors */
+
+.drawflow .parent-node .drawflow-node {
+    background-color: rgb(200, 210, 220);
+    width: auto;
+}
+
+.drawflow .parent-node .drawflow-node.selected {
+    background-color: rgb(220, 230, 240);
+}
+
+/* Colors for flow outputs */
+
+.drawflow .parent-node .drawflow-node.Conditional .output,
+.drawflow .parent-node .drawflow-node:not(.Value):not(.Operation) .output.output_1,
+.drawflow .parent-node .drawflow-node.Loop .output.output_2,
+.drawflow .parent-node .drawflow-node:not(.Operation) .input.input_1 {
+  background-color: rgba(255, 255, 255, 0);
+  border-radius: 0;
+  border-left: 20px solid mediumorchid;
+  border-right: 0px;
+  border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent;
+  width: 0px;
+  height: 0px;
+}
+
+/* Colors for value outputs */
+
+.drawflow .parent-node .drawflow-node .output {
+  background-color: rgb(255, 167, 33);
+}
+
+.drawflow .drawflow-node .output:hover {
+  background-color: rgb(255, 194, 102);
+}
+
+/* Assignation node styling */
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_1,
+.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
+  top: -9px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_2,
+.drawflow .parent-node .drawflow-node.Assign .input.input_2 {
+  top: 10px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
+  left: -22px;
+}
+
+.drawflow .parent-node .drawflow-node.Assign .output.output_1 {
+  left: 8px
+}
+
+/* Operation node styling */
+
+.drawflow .drawflow-node.Operation .input {
+  top: 34px;
+}
+
+.drawflow .drawflow-node.Operation .output {
+  top: 49px;
+}
+
+/* Value nodes styling */
+
+.drawflow .drawflow-node.Value .input,
+.drawflow .drawflow-node.Value .output{
+  top: 22px;
+}
+
+/* If-else node styling */
+
+.drawflow .drawflow-node.Conditional .drawflow_content_node {
+  height: 182px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_1 {
+  top: -39px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_2{
+  top: -10px;
+}
+
+.drawflow .drawflow-node.Conditional .input.input_3{
+  top: 23px;
+}
+
+.drawflow .drawflow-node.Conditional .output {
+  top: 53px;
+}
+
+.drawflow .drawflow-node.Conditional .output.output_1 {
+  top: -43px;
+}
+
+/* For loop node styling */
+
+.drawflow .drawflow-node.Loop .drawflow_content_node {
+  height: 125px;
+}
+
+.drawflow .drawflow-node.Loop .input.input_1 {
+  top: -26px;
+  left: -26px;
+}
+
+.drawflow .drawflow-node.Loop .input {
+  top: 3px;
+}
+
+.drawflow .drawflow-node.Loop .output.output_1 {
+  top: -12px;
+}
+
+.drawflow .drawflow-node.Loop .output {
+  top: 31px;
+  right: -6px;
+}
+
+/* Miscellaneous nodes styling */
+
+.drawflow .drawflow-node.Misc .output {
+  top: -12px;
+  right: -8px;
+}
