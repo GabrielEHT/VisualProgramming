@@ -9,8 +9,7 @@
 
 <style scoped>
   h1,
-  p,
-  input {
+  div {
     font-family: Arial, Helvetica, sans-serif;
   }
 

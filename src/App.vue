@@ -4,51 +4,90 @@ import "drawflow/dist/drawflow.min.css"
 import { shallowRef, ref, h, render, onMounted } from 'vue'
 import * as components from './components/nodes.js'
 
-const name = ref("")
 const code = ref(null)
-const nameDiag = ref(null)
 const listDiag = ref(null)
+const nameLabel = ref(null)
 const scriptList = ref([])
+const overwriteWarn = ref(null)
 const editor = shallowRef({})
-const warn = ref({error:false})
+const alertUsr = ref({
+  error:false,
+  background:'blue',colors:['rgba(83, 245, 142, 0.96)', 'rgba(72, 212, 163, 0.83)']
+})
 const nodeData = ref([
-  {name:'Assignation', type:'assign', class:'Assign', in:2, out:2}, // flow input and output, value input and output
-  {name:'Number', type:'num', class:'Value'}, // no inputs, value output
-  {name:'Variable', type:'var', class:'Value'}, // no inputs, value output
-  {name:'Operation', type:'operations', class:'Operation', in:2}, // two value inputs, value output
-  {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3}, // flow input, two value inputs and three flow outputs
-  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:3}, // flow input, value input, value output and two flow outputs
-  {name:'Print', type:'misc', class:'Misc', in:2} // flow and value inputs, flow output
+  {name:'Assignation', type:'assign', class:'Assign', in:2, out:2},
+  {name:'Number', type:'num', class:'Value'},
+  {name:'Variable call', type:'var', class:'Value'},
+  {name:'Operation', type:'operations', class:'Operation', in:2},
+  {name:'If-else block', type:'flowcon', class:'Conditional', in:3, out:3},
+  {name:'For loop', type:'flowloop', class:'Loop', in:2, out:3},
+  {name:'Print', type:'misc', class:'Misc', in:2}
 ])
 var script;
+var name;
 var nodeList = [];
 var tempSave = {};
 var coords = {x:100, y:100}
 
-function showWarning(text) {
-  warn.value.text = text
-  warn.value.error = true
-  setTimeout(() => {warn.value.error = false}, 5000)
+function showAlert(text, color) {
+  if (color == 'green') {
+    alertUsr.value.colors = ['rgba(83, 245, 142, 0.96)', 'rgba(72, 212, 163, 0.83)']
+  } else {
+    alertUsr.value.colors = ['rgba(245, 83, 83, 0.96)', 'rgba(212, 72, 72, 0.83)']
+  }
+  alertUsr.value.text = text
+  alertUsr.value.error = true
+  setTimeout(() => {alertUsr.value.error = false}, 5000)
 }
 
-function showNameDialog() {
-  if (createScript()) {
-    nameDiag.value.showModal()
-  }
+function editName(mode) {
+  nameLabel.value.readOnly = false
 }
 
 function setName() {
-  let nameLabel = document.getElementById('script-name')
-  nameLabel.innerHTML = name.value
-  nameDiag.value.close()
+  if (nameLabel.value.value.toLowerCase() != 'unsaved') {
+    name = nameLabel.value.value
+  }
+  nameLabel.value.readOnly = true
+}
+
+function checkScrìpts() {
+  console.log(name)
+  for (let sc of scriptList.value) {
+    console.log(sc.name)
+    if (name == sc.name) {
+      return true
+    }
+  }
+  return false
+}
+
+function newScript() {
+  name = null
+  nameLabel.value.value = 'Unsaved'
+  nodeList = []
+  editor.value.clear()
+  script = null
+  code.value.data = ""
 }
 
 function requestExecution() {
-  if (createScript()) {
+  if (checkNodes()) {
+    createScript()
+    let stout = document.getElementById('stout')
     const http = new XMLHttpRequest()
     http.open('POST', 'http://localhost:8080/exec')
-    http.addEventListener('load', () => {
-      console.log(http.response)
+    http.addEventListener('loadstart', () => {
+      stout.innerHTML = 'Executing...'
+    })
+    http.addEventListener('loadend', () => {
+      if (http.response) {
+        stout.innerHTML = http.response
+      }
+    })
+    http.addEventListener('error', () => {
+      stout.innerHTML = 'Server error...'
+      showAlert('Server error, couldn\'t execute the script')
     })
     let wholeScript = ''
     for (let line of script) {
@@ -58,55 +97,146 @@ function requestExecution() {
   }
 }
 
-function saveScript(isNew) {
-  if (createScript()) {
-    const http = new XMLHttpRequest()
-    let data = {}
-    if (isNew) {
-      setName()
-      data.name = name.value.replaceAll(' ', '_')
-      http.open('POST', 'http://localhost:8080/users/Admin')
-    } else {
-      http.open('POST', 'http://localhost:8080/users/Admin/' + name.value.replaceAll(' ', '_'))    
-    }
-    data.list = JSON.stringify(nodeList) + '|'
-    let wholeScript = ''
-    for (let line of script) {
-      wholeScript += line + '|'
-    }
-    data.script = wholeScript.slice(0, -1)
-    data.nodes = JSON.stringify(editor.value.export()) + '|'
-    console.log(data)
-    http.addEventListener('load', () => {console.log(http.response)})
-    http.send(JSON.stringify(data))
-  }
-}
-
-// hacer que muestre un mensaje cuando "scriptList" es null
 function getScriptList() {
   const http = new XMLHttpRequest()
   http.open('GET', 'http://localhost:8080/users/Admin')
   http.addEventListener('load', () => {
-    scriptList.value = JSON.parse(http.response)
-    listDiag.value.showModal()
+    if (scriptList.value.err) {
+      showAlert('Successfully connected to the server', 'green')
+      clearInterval(scriptList.value.id)
+      scriptList.value = []
+    }
+    if (http.response != "empty") {
+      scriptList.value = JSON.parse(http.response)
+    } else {
+      scriptList.value = []
+    }
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, wait a moment or reload the page')
+    if (scriptList.value.err == undefined) {
+      scriptList.value = {
+        err:true,
+        id:setInterval(getScriptList, '15000')
+      }
+    }
   })
   http.send()
 }
 
-function loadScript(scriptName) {
+function loadScript(sc) {
   listDiag.value.close()
   const http = new XMLHttpRequest()
-  http.open('GET', 'http://localhost:8080/users/Admin/' + scriptName)
-  http.addEventListener('load', () => {
-    const resp = JSON.parse(http.response)
-    name.value = resp.name.replaceAll('_', ' ')
-    setName()
-    nodeList = JSON.parse(resp.nodeList.slice(0, -1))
-    editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
-    script = resp.code.split("|")
-    createScript(script)
+  http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_'))
+  http.addEventListener('loadstart', () => {
+    showAlert('Loading your script...', 'green')
+  })
+  http.addEventListener('loadend', () => {
+    if (http.response) {
+      const resp = JSON.parse(http.response)
+      name = resp.name
+      nameLabel.value.value = name
+      nodeList = JSON.parse(resp.nodeList.slice(0, -1))
+      editor.value.import(JSON.parse(resp.drawflow.slice(0, -1)))
+      script = resp.code.split("|")
+      createScript(script)
+      showAlert('Script successfully loaded', 'green')
+    }
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, couldn\'t load your script')
   })
   http.send()
+}
+
+function saveScript() {
+  if (checkNodes()) {
+    if (name) {
+      if (checkScrìpts()) {
+        overwriteWarn.value.showModal()
+      } else {
+        createScript()
+        const http = new XMLHttpRequest()
+        let data = {}
+        data.name = name
+        http.open('POST', 'http://localhost:8080/users/Admin')
+        data.list = JSON.stringify(nodeList) + '|'
+        let wholeScript = ''
+        for (let line of script) {
+          wholeScript += line + '|'
+        }
+        data.script = wholeScript.slice(0, -1)
+        data.nodes = JSON.stringify(editor.value.export()) + '|'
+        http.addEventListener('loadstart', () => {
+          showAlert('Saving the script...', 'green')
+        })
+        http.addEventListener('loadend', () => {
+          console.log(http.response)
+          showAlert('Script successfully saved', 'green')
+          getScriptList()
+        })
+        http.addEventListener('error', () => {
+          showAlert('Server error, couldn\'t save the script')
+        })
+        http.send(JSON.stringify(data))
+      }
+    } else {
+      showAlert('You have to name your script!')
+    }
+  }
+}
+
+function overwriteScript() {
+  overwriteWarn.value.close()
+  createScript()
+  const http = new XMLHttpRequest()
+  let data = {}
+  http.open('POST', 'http://localhost:8080/users/Admin/' + name.replaceAll(' ', '_'))
+  data.list = JSON.stringify(nodeList) + '|'
+  let wholeScript = ''
+  for (let line of script) {
+    wholeScript += line + '|'
+  }
+  data.script = wholeScript.slice(0, -1)
+  data.nodes = JSON.stringify(editor.value.export()) + '|'
+  console.log(data)
+  http.addEventListener('loadstart', () => {
+    showAlert('Overwritting script...', 'green')
+  })
+  http.addEventListener('loadend', () => {
+    console.log(http.response)
+    showAlert('Script successfully overwritten', 'green')
+    getScriptList()
+  })
+  http.addEventListener('error', () => {
+    showAlert('Server error, couldn\'t overwrite the script')
+  })
+  http.send(JSON.stringify(data))
+}
+
+function deleteScript(sc, i) {
+  let buttons = document.getElementsByClassName('delete-script')
+  if (sc == 'cancel') {
+    buttons[i].style['background-color'] = ''
+  } else if (buttons[i].style['background-color'] == '') {
+    buttons[i].style['background-color'] = 'red'
+  } else {
+    const http = new XMLHttpRequest()
+    http.open('GET', 'http://localhost:8080/users/Admin/' + sc.replaceAll(' ', '_') + '/delete')
+    http.addEventListener('loadstart', () => {
+      buttons[i].innerHTML = 'Deleting...'
+    })
+    http.addEventListener('loadend', () => {
+      console.log(http.response)
+      buttons[i].innerHTML = 'Delete'
+      buttons[i].style['background-color'] = ''
+      getScriptList()
+    })
+    http.addEventListener('error', () => {
+      showAlert('Server error, couldn\'t delete the script')
+    })
+    http.send()
+  }
 }
 
 function getRootNode() {
@@ -165,17 +295,17 @@ function checkNodes() {
             message = 'You have to select a condition for all if-else nodes!'
             break
         }
-        showWarning(message)
+        showAlert(message)
         return false
       } else if (node.inputs.input_2 && node.inputs.input_2.connections.length == 0) {
-        showWarning('You have unconnected nodes!')
+        showAlert('You have unconnected nodes!')
         return false
       } else if (node.inputs.input_3 && node.inputs.input_3.connections.length == 0) {
-        showWarning('You have unconnected nodes!')
+        showAlert('You have unconnected nodes!')
         return false
       } else if (node.inputs.input_1 && node.inputs.input_1.connections.length == 0) {
         if (rootCount) {
-          showWarning('Too many root nodes') // mejorar
+          showAlert('Too many root nodes') // mejorar
           return false
         } else {
           rootCount++
@@ -184,24 +314,18 @@ function checkNodes() {
     }
     return true
   } else {
-    showWarning('You haven\'t created any nodes!');
+    showAlert('You haven\'t created any nodes!');
     return false
   }
 }
 
 function createScript() {
-  if (checkNodes()) {
-    let execTree = generateExecTree()
-    console.log(execTree)
-    script = generateCode(execTree)
-    console.log(script)
-    let scriptBlob = new Blob(script, {type:"text/plain;charset=utf-8"})
-    let scriptUrl = window.URL.createObjectURL(scriptBlob)
-    code.value.data = scriptUrl
-    return true
-  } else {
-    return false
-  }
+  let execTree = generateExecTree()
+  console.log(execTree)
+  script = generateCode(execTree)
+  let scriptBlob = new Blob(script, {type:"text/plain;charset=utf-8"})
+  let scriptUrl = window.URL.createObjectURL(scriptBlob)
+  code.value.data = scriptUrl
 }
 
 function resolveValueNodes(id) {
@@ -334,6 +458,8 @@ function addNode(data) {
 }
 
 onMounted(() => {
+  getScriptList()
+
   // Initialices Drawflow
   let id = document.getElementById("drawflow");
   let Vue = { version: 3, h, render };
@@ -404,6 +530,7 @@ onMounted(() => {
 
   // Checks if the created connection is valid
   editor.value.on('connectionCreated', (data) => {
+    updateNodeData()
     let input = getNodeFromId(data.input_id);
     let output = getNodeFromId(data.output_id);
     let output_type = 'value';
@@ -421,15 +548,21 @@ onMounted(() => {
       }
     }
 
-    if (output_type == 'value') {
+    if (input.inputs[data.input_class].connections.length > 1) {
+      editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+      showAlert('That input is already occupied')
+    } else if (output_type == 'value') {
       if (input_type == 'flow') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        showWarning('You can\'t connect a value output to a flow input!')
+        showAlert('You can\'t connect a value output to a flow input!')
       }
-    } else {
+    } else if (output_type == 'flow') {
       if (input_type == 'value') {
         editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
-        showWarning('You can\'t connect a flow output to a value input!')
+        showAlert('You can\'t connect a flow output to a value input!')
+      } else if (output.outputs[data.output_class].connections.length > 1) {
+        editor.value.removeSingleConnection(data.output_id, data.input_id, data.output_class, data.input_class)
+        showAlert('That flow output already has a connection')        
       }
     }
   })
@@ -447,29 +580,45 @@ onMounted(() => {
 
 <template>
   <div class="box">
-    <div v-if="warn.error">
-      <dialog open id="warn-box">
-        <p>{{warn.text}}</p>
+
+    <div v-if="alertUsr.error">
+      <dialog open id="alert-box" :style="{ 'background-color': alertUsr.colors[0], 'border-color': alertUsr.colors[1] }">
+        <p>{{alertUsr.text}}</p>
       </dialog>
     </div>
-    <dialog ref="nameDiag">
-      <p>Enter a name</p>
-      <input type="text" placeholder="Name" v-model="name">
-      <button @click="nameDiag.close()">Cancel</button>
-      <button @click="saveScript(true)">Accept</button>
+
+    <dialog ref="overwriteWarn">
+      <h1>Warning!</h1>
+      <p>This script already exists, do you wish to overwrite it?</p>
+      <button @click="overwriteWarn.close()">Cancel</button>
+      <button @click="overwriteScript()">Accept</button>
     </dialog>
-    <dialog ref="listDiag">
-      <h1>Your scripts:</h1>
-      <button @click="listDiag.close()">X</button>
-      <div>
-        <ul>
-          <li v-for="userScript in scriptList">
-            <button @click="loadScript(userScript.name)">{{userScript.name.replaceAll('_', ' ')}}</button>
-          </li>
-        </ul>
+
+    <dialog ref="listDiag" id="script-list">
+      <button @click="listDiag.close()" id="close-list">Close</button>
+      <div v-if="scriptList.err">
+        <h1>Server error...</h1>
+        <p>Could't get your scripts list</p>
+      </div>
+      <div v-else>
+        <h1>Your scripts:</h1>
+        <div v-if="scriptList.length == 0">
+          <p>You don't have scripts</p>
+        </div>
+        <div v-else>
+          <ul>
+            <li v-for="(sc, i) in scriptList">
+              <p>{{sc.name}}</p>
+              <button @click="loadScript(sc.name)" class="load-script">Load</button>
+              <button @click="deleteScript(sc.name, i)" @focusout="deleteScript('cancel', i)" class="delete-script">Delete</button>
+            </li>
+          </ul>
+        </div>
       </div>
     </dialog>
-    <p id="script-name">Unsaved</p>
+
+    <input readonly id="script-name" ref="nameLabel" value="Unsaved" maxlength="20" title="Double click to edit" @dblclick="editName()" @focusout="setName()">
+
     <div class="left-panel">
       <h3>Nodes</h3>
       <ul>
@@ -477,22 +626,28 @@ onMounted(() => {
           <button @click="addNode(data)">{{data.name}}</button>
         </li>
       </ul>
-      <button @click="editor.clear()">Clear editor</button>
+      <button @click="newScript()" id="reset">New script</button>
     </div>
+
     <div id="drawflow"></div>
+
     <div class="right-panel">
-      <button @click="createScript()" id="generate">Generate script</button>
       <button @click="requestExecution()" id="execute">Execute script</button>
-      <div id="list"><object ref="code" width=200 height=400></object></div>
-      <button @click="name==''? showNameDialog() : saveScript()" class="database" id="save">Save script</button>
-      <button @click="getScriptList()" class="database" id="load">Load script</button>
+      <div id="code">
+        <object ref="code"></object>
+      </div>
+      <textarea id="stout" readonly>Waiting script execution...</textarea>
+      <button @click="saveScript()" class="database" id="save">Save script</button>
+      <button @click="listDiag.showModal()" class="database" id="load">Load script</button>
     </div>
+
   </div>
 </template>
 
 <style scoped>
 
 .box {
+  font-family: Arial, Helvetica, sans-serif;
   position: absolute;
   display: flex;
   height: 100%;
@@ -501,12 +656,11 @@ onMounted(() => {
   top: 0px;
 }
 
-#warn-box {
+#alert-box {
   top: -15px;
-  border: 3px solid rgba(72, 212, 163, 0.83);
+  border: 3px solid;
   border-radius: 20px;
   z-index: 1;
-  background-color: rgba(83, 245, 142, 0.96);
   animation-name: slideIn, slideOut;
   animation-duration: 1s, 1s;
   animation-delay: 0s, 4s;
@@ -530,10 +684,35 @@ onMounted(() => {
   }
 }
 
+#script-list #close-list {
+  position: relative;
+  left: 146px;
+}
+
+#script-list ul {
+  list-style-type: none;
+  padding-left: 2px;
+}
+
+#script-list li {
+  display: flex;
+  align-items: center;
+  height: 30px;
+}
+
+#script-list .load-script {
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
 #script-name {
   position: absolute;
-  left: 238px;
-  top: 5px;
+  left: 240px;
+  top: 14px;
+  z-index: 1;
+  border: 0px;
+  font-size: medium;
+  background-color: transparent;
 }
 
 .left-panel,
@@ -544,14 +723,8 @@ onMounted(() => {
 
 .left-panel {
   width: 25%;
-  top: 0px;
-  left: 0px;
   padding-left: 15px;
-}
-
-.left-panel * {
   font-size: medium;
-  font-family: Arial, Helvetica, sans-serif;
 }
 
 .left-panel h3 {
@@ -566,6 +739,21 @@ onMounted(() => {
 
 .left-panel ul {
   list-style-type: none;
+  padding-left: 0px;
+  margin-right: 14px;
+}
+
+.left-panel ul button {
+  margin-bottom: 10px;
+  width: 100%;
+  height: 40px;
+}
+
+#reset {
+  position: relative;
+  top: 126px;
+  width: 202px;
+  height: 30px;
 }
 
 #drawflow {
@@ -586,26 +774,22 @@ onMounted(() => {
 }
 
 .right-panel .database {
-  position: absolute;
-  bottom: 0px;
-}
-
-#generate{
-  left: 5px;
-  top: 15px;
+  bottom: -44px;
+  width: 120px;
 }
 
 #execute {
   top: 15px;
-  right: -48px;
+  right: -5px;
+  width: 97%;
 }
 
 #save {
-  right: 170px;
+  left: 5px;
 }
 
 #load {
-  right: 5px;
+  right: -13px;
 }
 
 .right-panel div {
@@ -613,148 +797,28 @@ onMounted(() => {
   top: 30px;
 }
 
-#list object {
-  font: Arial;
-  font-size: 14px;
+#code {
+  height: 400px;
   background-color: white;
-  width: 97%;
-  height: 512px;
-  margin-left: 4px;
+  margin-left: 5px;
+  margin-right: 5px;
 }
 
-</style>
-
-<style>
-
-/* Nodes colors */
-
-.drawflow .parent-node .drawflow-node {
-    background-color: rgb(200, 210, 220);
-    width: auto;
+#code object {
+  font-size: 14px;
+  background-color: transparent;
+  width: 100%;
+  height: 100%;
 }
 
-.drawflow .parent-node .drawflow-node.selected {
-    background-color: rgb(220, 230, 240);
-}
-
-/* Colors for flow outputs */
-
-.drawflow .parent-node .drawflow-node.Conditional .output,
-.drawflow .parent-node .drawflow-node:not(.Value):not(.Operation) .output.output_1,
-.drawflow .parent-node .drawflow-node.Loop .output.output_2,
-.drawflow .parent-node .drawflow-node:not(.Operation) .input.input_1 {
-  background-color: rgba(255, 255, 255, 0);
-  border-radius: 0;
-  border-left: 20px solid mediumorchid;
-  border-right: 0px;
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  width: 0px;
-  height: 0px;
-}
-
-/* Colors for value outputs */
-
-.drawflow .parent-node .drawflow-node .output {
-  background-color: rgb(255, 167, 33);
-}
-
-.drawflow .drawflow-node .output:hover {
-  background-color: rgb(255, 194, 102);
-}
-
-/* Assignation node styling */
-
-.drawflow .parent-node .drawflow-node.Assign .output.output_1,
-.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
-  top: -9px;
-}
-
-.drawflow .parent-node .drawflow-node.Assign .output.output_2,
-.drawflow .parent-node .drawflow-node.Assign .input.input_2 {
-  top: 10px;
-}
-
-.drawflow .parent-node .drawflow-node.Assign .input.input_1 {
-  left: -22px;
-}
-
-.drawflow .parent-node .drawflow-node.Assign .output.output_1 {
-  left: 8px
-}
-
-/* Operation node styling */
-
-.drawflow .drawflow-node.Operation .input {
-  top: 34px;
-}
-
-.drawflow .drawflow-node.Operation .output {
-  top: 49px;
-}
-
-/* Value nodes styling */
-
-.drawflow .drawflow-node.Value .input,
-.drawflow .drawflow-node.Value .output{
-  top: 22px;
-}
-
-/* If-else node styling */
-
-.drawflow .drawflow-node.Conditional .drawflow_content_node {
-  height: 182px;
-}
-
-.drawflow .drawflow-node.Conditional .input.input_1 {
-  top: -39px;
-}
-
-.drawflow .drawflow-node.Conditional .input.input_2{
-  top: -10px;
-}
-
-.drawflow .drawflow-node.Conditional .input.input_3{
-  top: 23px;
-}
-
-.drawflow .drawflow-node.Conditional .output {
-  top: 53px;
-}
-
-.drawflow .drawflow-node.Conditional .output.output_1 {
-  top: -43px;
-}
-
-/* For loop node styling */
-
-.drawflow .drawflow-node.Loop .drawflow_content_node {
-  height: 125px;
-}
-
-.drawflow .drawflow-node.Loop .input.input_1 {
-  top: -26px;
-  left: -26px;
-}
-
-.drawflow .drawflow-node.Loop .input {
-  top: 3px;
-}
-
-.drawflow .drawflow-node.Loop .output.output_1 {
-  top: -12px;
-}
-
-.drawflow .drawflow-node.Loop .output {
-  top: 31px;
-  right: -6px;
-}
-
-/* Miscellaneous nodes styling */
-
-.drawflow .drawflow-node.Misc .output {
-  top: -12px;
-  right: -8px;
+#stout {
+  position: relative;
+  bottom: -37px;
+  margin-left: 5px;
+  margin-right: 5px;
+  resize: none;
+  width: 93%;
+  height: 91px;
 }
 
 </style>

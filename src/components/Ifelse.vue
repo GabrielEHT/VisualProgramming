@@ -48,8 +48,4 @@
     left: 166px;
   }
 
-  div {
-    display: grid;
-  }
-
 </style>
