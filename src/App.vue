@@ -610,7 +610,7 @@ onMounted(() => {
       </div>
     </dialog>
 
-    <input readonly id="script-name" ref="nameLabel" value="Unsaved" @dblclick="editName()" @focusout="setName()">
+    <input readonly id="script-name" ref="nameLabel" value="Unsaved" maxlength="20" title="Double click to edit" @dblclick="editName()" @focusout="setName()">
 
     <div class="left-panel">
       <h3>Nodes</h3>
